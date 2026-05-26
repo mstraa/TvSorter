@@ -26,6 +26,24 @@ Use `scripts/create-proxmox-lxc.sh --help` for all options.
 
 When run interactively, the script prompts for root disk and template storage. `--storage auto` chooses the first Proxmox storage that advertises container root disk support. To choose manually, run `pvesm status` on the Proxmox host and pass the wanted storage name with `--storage`.
 
+## Updating In The LXC
+
+The Proxmox creation script installs `/usr/local/bin/update`, which updates `/opt/tvsorter` to the latest GitHub `main`, refreshes the Python virtual environment, and restarts `tvsorter.service`.
+
+Inside the LXC:
+
+```sh
+update
+```
+
+For an existing container created before this command existed:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/mstraa/TvSorter/main/scripts/update-tvsorter.sh -o /usr/local/bin/update-tvsorter
+chmod 0755 /usr/local/bin/update-tvsorter
+ln -sf /usr/local/bin/update-tvsorter /usr/local/bin/update
+```
+
 ## Package Install
 
 ```sh

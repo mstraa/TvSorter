@@ -430,6 +430,7 @@ set -Eeuo pipefail
 
 repo_url="$1"
 repo_branch="$2"
+update_url="$3"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
@@ -453,6 +454,10 @@ fi
 python3 -m venv /opt/tvsorter/.venv
 /opt/tvsorter/.venv/bin/python -m pip install --upgrade pip
 /opt/tvsorter/.venv/bin/python -m pip install -e /opt/tvsorter
+
+curl -fsSL "$update_url" -o /usr/local/bin/update-tvsorter
+chmod 0755 /usr/local/bin/update-tvsorter
+ln -sf /usr/local/bin/update-tvsorter /usr/local/bin/update
 
 cat >/etc/systemd/system/tvsorter.service <<'UNIT'
 [Unit]
@@ -481,7 +486,8 @@ INSTALL
 
 log "Installing TvSorter inside LXC $CTID"
 pct push "$CTID" "$install_script" /root/install-tvsorter.sh -perms 0755
-pct exec "$CTID" -- /root/install-tvsorter.sh "$REPO_URL" "$REPO_BRANCH"
+UPDATE_URL="https://raw.githubusercontent.com/mstraa/TvSorter/${REPO_BRANCH}/scripts/update-tvsorter.sh"
+pct exec "$CTID" -- /root/install-tvsorter.sh "$REPO_URL" "$REPO_BRANCH" "$UPDATE_URL"
 
 if [[ "$START" == "0" ]]; then
   log "Stopping LXC $CTID because --no-start was requested"

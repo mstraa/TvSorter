@@ -44,3 +44,17 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/mstraa/TvSorter/main/scr
 The script prompts for root disk and template storage when run interactively. Use `--help` to see static IP, SSH key, storage, and sizing options.
 
 If your Proxmox node does not have `local-lvm`, use the prompt, pass `--storage auto`, or inspect choices with `pvesm status`.
+
+Inside the LXC, update TvSorter to the latest GitHub `main` with:
+
+```sh
+update
+```
+
+For an existing container created before the `update` command existed:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/mstraa/TvSorter/main/scripts/update-tvsorter.sh -o /usr/local/bin/update-tvsorter
+chmod 0755 /usr/local/bin/update-tvsorter
+ln -sf /usr/local/bin/update-tvsorter /usr/local/bin/update
+```
