@@ -22,6 +22,16 @@ def test_parse_one_x_two_filename() -> None:
     assert parsed.quality == "720p"
 
 
+def test_parse_anime_style_episode_filename() -> None:
+    parsed = parse_media_filename("Claymore.E02.MULTi.1080p.BluRay.x264-Kazuto.mkv")
+
+    assert parsed.title == "Claymore"
+    assert parsed.season == 1
+    assert parsed.episode == 2
+    assert parsed.episode_title == "Episode"
+    assert parsed.quality == "1080p"
+
+
 def test_parse_film_filename() -> None:
     parsed = parse_film_filename("Blade.Runner.2049.2017.2160p.BluRay.x265.mkv")
 
@@ -31,3 +41,11 @@ def test_parse_film_filename() -> None:
     assert parsed.episode == 0
     assert parsed.episode_title == "Film"
     assert parsed.quality == "2160p"
+
+
+def test_parse_film_filename_strips_release_language_tags() -> None:
+    parsed = parse_film_filename("12.Angry.Men.1957.MULTI.VFF.720p.HDRip.x264.AC3.2.0.mkv.mkv")
+
+    assert parsed.title == "12 Angry Men"
+    assert parsed.year == 1957
+    assert parsed.quality == "720p"

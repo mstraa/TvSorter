@@ -36,7 +36,7 @@ Keep this file updated as implementation progresses. Record completed work, deci
 - Use non-login public metadata APIs.
 - Default TV provider: TVMaze.
 - Default Anime provider: Jikan.
-- Film support uses filename parsing/manual correction for now; no no-login film metadata provider is required for MVP.
+- Film support uses Wikidata lookup plus filename parsing/manual correction fallback.
 
 ## Target Naming Format
 
@@ -167,3 +167,4 @@ Film Name (Year)/Film Name (Year) - Quality.ext
 - Added Settings folder picker for browsing LXC-mounted folders when selecting input and output roots.
 - Expanded autologin coverage to include `console-getty.service` and restart available getty units after applying overrides.
 - Added Film media type with separate output root, film parser, film naming, import support, and SQLite migration for existing DBs.
+- Added anime-style `E02` parsing, Jikan throttling/retry behavior, batch provider de-duplication, and Wikidata film lookup.

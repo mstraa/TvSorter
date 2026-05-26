@@ -64,9 +64,10 @@ Use Jikan public API by default.
 
 ### Film
 
-Use filename parsing and manual correction by default.
+Use Wikidata public API plus filename parsing/manual correction by default.
 
 - No logged/API-key provider is required for the MVP.
+- Wikidata results should be filtered to film-like entities.
 - Optional API-key providers may be added later for richer film metadata.
 
 ### Future Optional Providers
@@ -121,7 +122,7 @@ Film output root:
 9. App searches the matching metadata provider when available:
    - TVMaze for TV
    - Jikan for Anime
-   - Film uses filename parsing/manual correction in the MVP
+   - Wikidata for Film
 10. App shows proposed matches.
 11. User may manually override:
    - provider result
@@ -176,6 +177,14 @@ Quality should be detected in this order:
 1. Filename tags such as `720p`, `1080p`, or `2160p`.
 2. ffprobe resolution fallback if available.
 3. `Unknown` when quality cannot be determined.
+
+## Rate Limiting
+
+Provider calls should be cached and de-duplicated during batch matching.
+
+- Jikan requests should be throttled to avoid `429 Too Many Requests`.
+- Repeated files from the same show should reuse one show search and one episode-list lookup.
+- If a provider still rate-limits or fails, the UI should keep the filename-parsed fallback available for manual correction.
 
 ## Import Actions
 

@@ -7,12 +7,13 @@ from pathlib import Path
 
 QUALITY_RE = re.compile(r"\b(2160p|1080p|720p|480p)\b", re.IGNORECASE)
 RELEASE_TRAIL_RE = re.compile(
-    r"(?i)\b(2160p|1080p|720p|480p|web[ ._-]?dl|webrip|hdtv|bluray|brrip|x264|x265|h[ ._-]?264|h[ ._-]?265|hevc|aac|ddp?5?[ ._-]?1)\b.*$"
+    r"(?i)\b(2160p|1080p|720p|480p|multi|vff|vfq|vf2|vf|truefrench|french|hdrip|web[ ._-]?dl|webrip|hdtv|bluray|bdrip|brrip|dvdrip|x264|x265|h[ ._-]?264|h[ ._-]?265|hevc|aac|ac3|ddp?5?[ ._-]?1|proper|repack)\b.*$"
 )
 YEAR_RE = re.compile(r"(?:^|[\s._(-])((?:19|20)\d{2})(?:$|[\s._)-])")
 YEAR_TOKEN_RE = re.compile(r"(?:19|20)\d{2}")
 SXXEYY_RE = re.compile(r"(?i)\bS(?P<season>\d{1,2})E(?P<episode>\d{1,3})\b")
 ONE_X_TWO_RE = re.compile(r"(?i)\b(?P<season>\d{1,2})x(?P<episode>\d{1,3})\b")
+EYY_RE = re.compile(r"(?i)(?:^|[\s._-])E(?P<episode>\d{1,3})(?:$|[\s._-])")
 SEASON_EP_RE = re.compile(
     r"(?i)\bseason[\s._-]*(?P<season>\d{1,2})[\s._-]*episode[\s._-]*(?P<episode>\d{1,3})\b"
 )
@@ -75,6 +76,9 @@ def _find_episode(stem: str) -> tuple[int, int, re.Match[str] | None]:
         match = pattern.search(stem)
         if match:
             return int(match.group("season")), int(match.group("episode")), match
+    match = EYY_RE.search(stem)
+    if match:
+        return 1, int(match.group("episode")), match
     return 1, 1, None
 
 

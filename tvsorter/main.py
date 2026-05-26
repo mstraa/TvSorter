@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Annotated
 
 import uvicorn
+import httpx
 from fastapi import FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -128,13 +129,17 @@ async def match_page(
     rows = []
     provider_cache: dict[str, object] = {}
     episode_cache: dict[tuple[str, str], object] = {}
+    match_cache: dict[tuple[str, str, int | None], dict] = {}
     for file_path in files:
         parsed = parse_film_filename(file_path) if media_type == "film" else parse_media_filename(file_path)
-        enriched = (
-            _film_match(parsed)
-            if media_type == "film"
-            else await _enrich_match(parsed, media_type, provider_cache, episode_cache)
-        )
+        if media_type == "film":
+            cache_key = (media_type, getattr(parsed, "title").casefold(), getattr(parsed, "year"))
+            enriched = match_cache.get(cache_key)
+            if enriched is None:
+                enriched = await _enrich_film_match(parsed, provider_cache)
+                match_cache[cache_key] = enriched
+        else:
+            enriched = await _enrich_match(parsed, media_type, provider_cache, episode_cache)
         rows.append({"source_path": file_path, "parsed": parsed, **enriched})
 
     return templates.TemplateResponse(
@@ -378,7 +383,7 @@ async def _enrich_match(parsed: object, media_type: str, search_cache: dict, epi
             "metadata_error": None,
         }
     except Exception as exc:
-        return fallback | {"metadata_error": str(exc)}
+        return fallback | {"metadata_error": _metadata_error_message(exc)}
 
 
 def _output_roots() -> dict[str, Path]:
@@ -395,8 +400,8 @@ def _output_roots() -> dict[str, Path]:
     return roots
 
 
-def _film_match(parsed: object) -> dict:
-    return {
+async def _enrich_film_match(parsed: object, search_cache: dict) -> dict:
+    fallback = {
         "show_title": getattr(parsed, "title"),
         "show_year": getattr(parsed, "year"),
         "episode_title": "Film",
@@ -405,6 +410,36 @@ def _film_match(parsed: object) -> dict:
         "candidates": [],
         "metadata_error": None,
     }
+    title = getattr(parsed, "title")
+    try:
+        candidates = search_cache.get(title)
+        if candidates is None:
+            candidates = await PROVIDERS.search("film", title)
+            search_cache[title] = candidates
+        if not candidates:
+            return fallback
+        parsed_year = getattr(parsed, "year")
+        selected = next(
+            (candidate for candidate in candidates if parsed_year and candidate.year == parsed_year),
+            candidates[0],
+        )
+        return {
+            "show_title": selected.title,
+            "show_year": selected.year or getattr(parsed, "year"),
+            "episode_title": "Film",
+            "provider": selected.provider,
+            "provider_show_id": selected.provider_id,
+            "candidates": candidates,
+            "metadata_error": None,
+        }
+    except Exception as exc:
+        return fallback | {"metadata_error": _metadata_error_message(exc)}
+
+
+def _metadata_error_message(exc: Exception) -> str:
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429:
+        return "Metadata provider is rate-limiting requests. Filename parsing was used for this item."
+    return str(exc)
 
 
 def _settings_checks(input_roots: list, output_roots: dict[str, Path]) -> list[dict[str, object]]:
