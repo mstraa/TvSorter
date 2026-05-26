@@ -2,6 +2,29 @@
 
 This is the initial deployment shape for running TvSorter inside a privileged LXC container.
 
+## Automated Proxmox Creation
+
+From the Proxmox VE host, run:
+
+```sh
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/mstraa/TvSorter/main/scripts/create-proxmox-lxc.sh)" -- \
+  --ctid 120 \
+  --storage local-lvm \
+  --mount /tank/downloads:/mnt/downloads \
+  --mount /tank/media/TV:/mnt/media/TV \
+  --mount /tank/media/Anime:/mnt/media/Anime
+```
+
+The script:
+
+- Creates a privileged Debian LXC.
+- Downloads a Debian standard template through `pveam` when needed.
+- Adds any requested bind mounts.
+- Installs Python, ffmpeg, Git, and TvSorter from GitHub.
+- Creates and starts the `tvsorter.service` systemd unit.
+
+Use `scripts/create-proxmox-lxc.sh --help` for all options.
+
 ## Package Install
 
 ```sh
@@ -66,4 +89,3 @@ Enable it:
 systemctl daemon-reload
 systemctl enable --now tvsorter
 ```
-

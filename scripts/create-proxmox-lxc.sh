@@ -1,0 +1,366 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+APP_NAME="TvSorter"
+DEFAULT_REPO="https://github.com/mstraa/TvSorter.git"
+DEFAULT_BRANCH="main"
+
+CTID=""
+HOSTNAME="tvsorter"
+STORAGE="local-lvm"
+TEMPLATE_STORAGE="local"
+TEMPLATE=""
+BRIDGE="vmbr0"
+IP_CONFIG="dhcp"
+GATEWAY=""
+CORES="2"
+MEMORY="2048"
+SWAP="512"
+DISK="8"
+START="1"
+REPO_URL="${TVSORTER_REPO_URL:-$DEFAULT_REPO}"
+REPO_BRANCH="${TVSORTER_REPO_BRANCH:-$DEFAULT_BRANCH}"
+SSH_PUBLIC_KEY=""
+ROOT_PASSWORD=""
+DRY_RUN="0"
+declare -a MOUNTS=()
+
+usage() {
+  cat <<'USAGE'
+Create a privileged Proxmox LXC and install TvSorter.
+
+Run this script from the Proxmox VE host as root.
+
+Required:
+  --ctid ID                    LXC container ID, for example 120
+
+Common options:
+  --hostname NAME              Container hostname (default: tvsorter)
+  --storage NAME               Root disk storage (default: local-lvm)
+  --template-storage NAME      Template storage (default: local)
+  --bridge NAME                Network bridge (default: vmbr0)
+  --ip dhcp|CIDR               IP config, for example dhcp or 192.168.1.50/24 (default: dhcp)
+  --gateway IP                 Gateway for static IP configs
+  --cores N                    CPU cores (default: 2)
+  --memory MiB                 RAM in MiB (default: 2048)
+  --swap MiB                   Swap in MiB (default: 512)
+  --disk GiB                   Root disk size in GiB (default: 8)
+  --repo URL                   Git repo to install (default: https://github.com/mstraa/TvSorter.git)
+  --branch NAME                Git branch to install (default: main)
+  --ssh-public-key PATH        SSH public key for root login
+  --root-password PASSWORD     Root password for the container
+  --mount HOST:CT              Bind mount, repeatable. Example: /tank/media:/mnt/media
+  --no-start                   Create and install, then stop the container
+  --dry-run                    Print planned settings without changing Proxmox
+  -h, --help                   Show this help
+
+Examples:
+  scripts/create-proxmox-lxc.sh \
+    --ctid 120 \
+    --storage local-lvm \
+    --mount /tank/downloads:/mnt/downloads \
+    --mount /tank/media/TV:/mnt/media/TV \
+    --mount /tank/media/Anime:/mnt/media/Anime
+
+  scripts/create-proxmox-lxc.sh \
+    --ctid 121 \
+    --ip 192.168.1.121/24 \
+    --gateway 192.168.1.1 \
+    --ssh-public-key ~/.ssh/id_ed25519.pub
+USAGE
+}
+
+log() {
+  printf '[%s] %s\n' "$APP_NAME" "$*"
+}
+
+die() {
+  printf '[%s] ERROR: %s\n' "$APP_NAME" "$*" >&2
+  exit 1
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --ctid)
+      CTID="${2:-}"
+      shift 2
+      ;;
+    --hostname)
+      HOSTNAME="${2:-}"
+      shift 2
+      ;;
+    --storage)
+      STORAGE="${2:-}"
+      shift 2
+      ;;
+    --template-storage)
+      TEMPLATE_STORAGE="${2:-}"
+      shift 2
+      ;;
+    --template)
+      TEMPLATE="${2:-}"
+      shift 2
+      ;;
+    --bridge)
+      BRIDGE="${2:-}"
+      shift 2
+      ;;
+    --ip)
+      IP_CONFIG="${2:-}"
+      shift 2
+      ;;
+    --gateway)
+      GATEWAY="${2:-}"
+      shift 2
+      ;;
+    --cores)
+      CORES="${2:-}"
+      shift 2
+      ;;
+    --memory)
+      MEMORY="${2:-}"
+      shift 2
+      ;;
+    --swap)
+      SWAP="${2:-}"
+      shift 2
+      ;;
+    --disk)
+      DISK="${2:-}"
+      shift 2
+      ;;
+    --repo)
+      REPO_URL="${2:-}"
+      shift 2
+      ;;
+    --branch)
+      REPO_BRANCH="${2:-}"
+      shift 2
+      ;;
+    --ssh-public-key)
+      SSH_PUBLIC_KEY="${2:-}"
+      shift 2
+      ;;
+    --root-password)
+      ROOT_PASSWORD="${2:-}"
+      shift 2
+      ;;
+    --mount)
+      MOUNTS+=("${2:-}")
+      shift 2
+      ;;
+    --no-start)
+      START="0"
+      shift
+      ;;
+    --dry-run)
+      DRY_RUN="1"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "Unknown option: $1"
+      ;;
+  esac
+done
+
+[[ -n "$CTID" ]] || die "--ctid is required"
+[[ "$CTID" =~ ^[0-9]+$ ]] || die "--ctid must be numeric"
+[[ -n "$HOSTNAME" ]] || die "--hostname cannot be empty"
+[[ -n "$STORAGE" ]] || die "--storage cannot be empty"
+[[ -n "$TEMPLATE_STORAGE" ]] || die "--template-storage cannot be empty"
+[[ -n "$BRIDGE" ]] || die "--bridge cannot be empty"
+[[ -n "$REPO_URL" ]] || die "--repo cannot be empty"
+[[ -n "$REPO_BRANCH" ]] || die "--branch cannot be empty"
+
+for mount in "${MOUNTS[@]}"; do
+  [[ "$mount" == *:* ]] || die "Invalid --mount value '$mount'. Expected HOST:CT"
+  host_path="${mount%%:*}"
+  ct_path="${mount#*:}"
+  [[ -n "$host_path" && -n "$ct_path" ]] || die "Invalid --mount value '$mount'. Expected HOST:CT"
+  [[ -e "$host_path" ]] || die "Host mount path does not exist: $host_path"
+  [[ "$ct_path" == /* ]] || die "Container mount path must be absolute: $ct_path"
+done
+
+if [[ "$DRY_RUN" == "1" ]]; then
+  cat <<EOF
+Planned TvSorter LXC:
+  CTID:             $CTID
+  Hostname:         $HOSTNAME
+  Privileged:       yes
+  Storage:          $STORAGE
+  Template storage: $TEMPLATE_STORAGE
+  Template:         ${TEMPLATE:-auto Debian standard}
+  Bridge:           $BRIDGE
+  IP:               $IP_CONFIG
+  Gateway:          ${GATEWAY:-none}
+  CPU/RAM/Swap:     ${CORES} cores / ${MEMORY} MiB / ${SWAP} MiB
+  Disk:             ${DISK} GiB
+  Repo:             $REPO_URL
+  Branch:           $REPO_BRANCH
+  Mounts:           ${MOUNTS[*]:-none}
+EOF
+  exit 0
+fi
+
+[[ "${EUID:-$(id -u)}" -eq 0 ]] || die "Run this script as root on the Proxmox VE host"
+require_cmd pct
+require_cmd pveam
+require_cmd pvesm
+
+pct status "$CTID" >/dev/null 2>&1 && die "CTID $CTID already exists"
+pvesm status --storage "$STORAGE" >/dev/null 2>&1 || die "Storage not found: $STORAGE"
+pvesm status --storage "$TEMPLATE_STORAGE" >/dev/null 2>&1 || die "Template storage not found: $TEMPLATE_STORAGE"
+
+if [[ -z "$TEMPLATE" ]]; then
+  log "Finding latest Debian standard LXC template"
+  pveam update >/dev/null
+  TEMPLATE="$(pveam available --section system | awk '/debian-[0-9]+-standard_[^ ]+_amd64\.tar\.(zst|xz|gz)/ {print $2}' | sort -V | tail -n 1)"
+  [[ -n "$TEMPLATE" ]] || die "Could not find a Debian standard template via pveam"
+fi
+
+if ! pveam list "$TEMPLATE_STORAGE" | awk '{print $1}' | grep -qx "${TEMPLATE_STORAGE}:vztmpl/${TEMPLATE}"; then
+  log "Downloading template $TEMPLATE to $TEMPLATE_STORAGE"
+  pveam download "$TEMPLATE_STORAGE" "$TEMPLATE"
+fi
+
+NET0="name=eth0,bridge=${BRIDGE},ip=${IP_CONFIG}"
+if [[ -n "$GATEWAY" && "$IP_CONFIG" != "dhcp" ]]; then
+  NET0="${NET0},gw=${GATEWAY}"
+fi
+
+create_args=(
+  "$CTID"
+  "${TEMPLATE_STORAGE}:vztmpl/${TEMPLATE}"
+  --hostname "$HOSTNAME"
+  --ostype debian
+  --unprivileged 0
+  --features nesting=1
+  --cores "$CORES"
+  --memory "$MEMORY"
+  --swap "$SWAP"
+  --rootfs "${STORAGE}:${DISK}"
+  --net0 "$NET0"
+  --onboot 1
+  --tags "tvsorter;media"
+)
+
+if [[ -n "$SSH_PUBLIC_KEY" ]]; then
+  [[ -f "$SSH_PUBLIC_KEY" ]] || die "SSH public key not found: $SSH_PUBLIC_KEY"
+  create_args+=(--ssh-public-keys "$SSH_PUBLIC_KEY")
+fi
+
+if [[ -n "$ROOT_PASSWORD" ]]; then
+  create_args+=(--password "$ROOT_PASSWORD")
+fi
+
+log "Creating privileged LXC $CTID"
+pct create "${create_args[@]}"
+
+mount_index=0
+for mount in "${MOUNTS[@]}"; do
+  host_path="${mount%%:*}"
+  ct_path="${mount#*:}"
+  log "Adding bind mount mp${mount_index}: $host_path -> $ct_path"
+  pct set "$CTID" -mp"${mount_index}" "${host_path},mp=${ct_path}"
+  mount_index=$((mount_index + 1))
+done
+
+log "Starting LXC $CTID"
+pct start "$CTID"
+
+log "Waiting for container startup"
+for _ in $(seq 1 60); do
+  if pct exec "$CTID" -- test -x /bin/bash >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+install_script="$(mktemp)"
+cleanup() {
+  rm -f "$install_script"
+}
+trap cleanup EXIT
+
+cat >"$install_script" <<'INSTALL'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+repo_url="$1"
+repo_branch="$2"
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y ca-certificates curl git ffmpeg python3 python3-venv
+
+if ! id tvsorter >/dev/null 2>&1; then
+  useradd --system --home /var/lib/tvsorter --create-home --shell /usr/sbin/nologin tvsorter
+fi
+
+install -d -o tvsorter -g tvsorter /var/lib/tvsorter
+
+if [[ ! -d /opt/tvsorter/.git ]]; then
+  rm -rf /opt/tvsorter
+  git clone --branch "$repo_branch" --depth 1 "$repo_url" /opt/tvsorter
+else
+  git -C /opt/tvsorter fetch origin "$repo_branch"
+  git -C /opt/tvsorter checkout "$repo_branch"
+  git -C /opt/tvsorter reset --hard "origin/${repo_branch}"
+fi
+
+python3 -m venv /opt/tvsorter/.venv
+/opt/tvsorter/.venv/bin/python -m pip install --upgrade pip
+/opt/tvsorter/.venv/bin/python -m pip install -e /opt/tvsorter
+
+cat >/etc/systemd/system/tvsorter.service <<'UNIT'
+[Unit]
+Description=TvSorter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=tvsorter
+Group=tvsorter
+WorkingDirectory=/opt/tvsorter
+Environment=TVSORTER_DATA_DIR=/var/lib/tvsorter
+Environment=TVSORTER_HOST=0.0.0.0
+Environment=TVSORTER_PORT=8080
+ExecStart=/opt/tvsorter/.venv/bin/uvicorn tvsorter.main:app --host 0.0.0.0 --port 8080
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now tvsorter
+INSTALL
+
+log "Installing TvSorter inside LXC $CTID"
+pct push "$CTID" "$install_script" /root/install-tvsorter.sh -perms 0755
+pct exec "$CTID" -- /root/install-tvsorter.sh "$REPO_URL" "$REPO_BRANCH"
+
+if [[ "$START" == "0" ]]; then
+  log "Stopping LXC $CTID because --no-start was requested"
+  pct stop "$CTID"
+fi
+
+ip_output="$(pct exec "$CTID" -- hostname -I 2>/dev/null || true)"
+log "Done"
+log "Container: $CTID ($HOSTNAME)"
+log "Service: pct exec $CTID -- systemctl status tvsorter"
+if [[ -n "$ip_output" ]]; then
+  log "Open: http://${ip_output%% *}:8080"
+else
+  log "Open the container summary in Proxmox to find its IP, then browse to port 8080"
+fi
+

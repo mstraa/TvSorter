@@ -19,6 +19,7 @@ Keep this file updated as implementation progresses. Record completed work, deci
 - Settings, browsing, matching, import, library, history, and output rescan pages exist.
 - TVMaze and Jikan provider clients exist with SQLite-backed response caching.
 - Core parser, naming, filesystem, and import services have unit tests.
+- Proxmox host-side LXC creation script exists in `scripts/create-proxmox-lxc.sh`.
 
 ## Confirmed Decisions
 
@@ -114,6 +115,7 @@ Show Name (Year)/Season XX/Show Name (Year) - SXXEYY - Episode Name - Quality.ex
 - [x] Add systemd unit example.
 - [x] Add install/run documentation.
 - [x] Document mount and permission expectations.
+- [x] Add Proxmox host-side LXC creation script.
 
 ## Open Questions
 
@@ -145,3 +147,4 @@ Show Name (Year)/Season XX/Show Name (Year) - SXXEYY - Episode Name - Quality.ex
 - Added development README and LXC deployment documentation.
 - Added unit tests for parser, naming, filesystem safety, and import conflict behavior.
 - Verified with pytest and browser smoke test against `/tmp/tvsorter-demo`.
+- Added `scripts/create-proxmox-lxc.sh` to create a privileged Debian LXC on Proxmox and install TvSorter from GitHub.

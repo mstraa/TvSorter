@@ -29,3 +29,17 @@ Environment variables:
 
 See [docs/PRD.md](docs/PRD.md) and [DEV.md](DEV.md) before development work.
 
+## Proxmox LXC
+
+Run this from the Proxmox VE host to create a privileged Debian LXC and install TvSorter from GitHub:
+
+```sh
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/mstraa/TvSorter/main/scripts/create-proxmox-lxc.sh)" -- \
+  --ctid 120 \
+  --storage local-lvm \
+  --mount /tank/downloads:/mnt/downloads \
+  --mount /tank/media/TV:/mnt/media/TV \
+  --mount /tank/media/Anime:/mnt/media/Anime
+```
+
+Use `--help` to see static IP, SSH key, storage, and sizing options.
