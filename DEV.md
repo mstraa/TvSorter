@@ -152,3 +152,4 @@ Show Name (Year)/Season XX/Show Name (Year) - SXXEYY - Episode Name - Quality.ex
 - Updated the Proxmox script to prompt for root disk and template storage in interactive terminals.
 - Added in-container `update` command installation for pulling latest GitHub `main`, refreshing dependencies, and restarting `tvsorter.service`.
 - Added Proxmox LXC console autologin via systemd getty overrides during install and update.
+- Added Settings folder picker for browsing LXC-mounted folders when selecting input and output roots.

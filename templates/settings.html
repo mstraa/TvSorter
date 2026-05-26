@@ -5,19 +5,43 @@
   <form method="post" action="/settings" class="stack">
     <label>
       Input roots
-      <textarea name="input_roots" rows="6" placeholder="/mnt/downloads">{{ input_roots_text }}</textarea>
+      <textarea id="input-roots" name="input_roots" rows="6" placeholder="/mnt/downloads">{{ input_roots_text }}</textarea>
     </label>
+    <button class="secondary-button" type="button" data-folder-picker data-target="input-roots" data-mode="append">Browse Input Root</button>
     <label>
       TV output root
-      <input name="tv_output_root" value="{{ tv_output_root }}" placeholder="/mnt/media/TV">
+      <input id="tv-output-root" name="tv_output_root" value="{{ tv_output_root }}" placeholder="/mnt/media/TV">
     </label>
+    <button class="secondary-button" type="button" data-folder-picker data-target="tv-output-root" data-mode="replace">Browse TV Output Root</button>
     <label>
       Anime output root
-      <input name="anime_output_root" value="{{ anime_output_root }}" placeholder="/mnt/media/Anime">
+      <input id="anime-output-root" name="anime_output_root" value="{{ anime_output_root }}" placeholder="/mnt/media/Anime">
     </label>
+    <button class="secondary-button" type="button" data-folder-picker data-target="anime-output-root" data-mode="replace">Browse Anime Output Root</button>
     <button type="submit">Save Settings</button>
   </form>
 </section>
+
+<dialog class="folder-dialog" id="folder-picker">
+  <div class="folder-dialog-header">
+    <h2>Select Folder</h2>
+    <button class="icon-button" type="button" data-folder-close aria-label="Close">x</button>
+  </div>
+  <div class="folder-dialog-body">
+    <label>
+      Current path
+      <input id="folder-picker-path" value="/mnt">
+    </label>
+    <div class="toolbar compact-toolbar">
+      <button class="secondary-button" type="button" data-folder-go>Go</button>
+      <button class="secondary-button" type="button" data-folder-up>Up</button>
+      <button type="button" data-folder-choose>Choose This Folder</button>
+    </div>
+    <div class="folder-roots" id="folder-picker-roots"></div>
+    <p class="error" id="folder-picker-error" hidden></p>
+    <div class="folder-list" id="folder-picker-list"></div>
+  </div>
+</dialog>
 
 <section class="panel">
   <h2>Permission Checks</h2>
@@ -40,4 +64,3 @@
   {% endif %}
 </section>
 {% endblock %}
-

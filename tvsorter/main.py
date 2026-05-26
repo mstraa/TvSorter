@@ -23,6 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG = load_config()
 DATABASE = Database(CONFIG.database_path)
 PROVIDERS = MetadataProviders(DATABASE)
+PICKER_ROOTS = [Path("/mnt"), Path("/media"), Path("/srv"), Path("/opt"), Path("/var/lib"), Path("/")]
 
 app = FastAPI(title="TvSorter")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -284,6 +285,34 @@ async def api_episodes(media_type: str, provider_show_id: str) -> dict[str, obje
     }
 
 
+@app.get("/api/folders")
+def api_folders(path: str = Query(default="/")) -> dict[str, object]:
+    current_path = _resolve_picker_path(path)
+    folders = []
+    try:
+        children = sorted(
+            [child for child in current_path.iterdir() if child.is_dir()],
+            key=lambda item: item.name.lower(),
+        )
+    except OSError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    for child in children:
+        try:
+            child.stat()
+        except OSError:
+            continue
+        folders.append({"name": child.name, "path": str(child)})
+
+    parent = current_path.parent if current_path != current_path.parent else None
+    return {
+        "path": str(current_path),
+        "parent": str(parent) if parent else None,
+        "folders": folders,
+        "roots": [str(root) for root in PICKER_ROOTS if root.exists()],
+    }
+
+
 def run() -> None:
     uvicorn.run("tvsorter.main:app", host=CONFIG.host, port=CONFIG.port, reload=False)
 
@@ -387,3 +416,12 @@ def _assert_source_allowed(source_path: Path) -> None:
     roots = [Path(row["path"]) for row in DATABASE.list_input_roots()]
     if not any(is_relative_to(source_path, root) for root in roots):
         raise HTTPException(status_code=400, detail=f"Source is outside configured input roots: {source_path}")
+
+
+def _resolve_picker_path(value: str) -> Path:
+    path = Path(value or "/").expanduser().resolve()
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"Folder does not exist: {path}")
+    if not path.is_dir():
+        raise HTTPException(status_code=400, detail=f"Path is not a folder: {path}")
+    return path

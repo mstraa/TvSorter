@@ -132,6 +132,24 @@ button,
   cursor: pointer;
 }
 
+.secondary-button {
+  background: #eef4f2;
+  color: var(--accent-dark);
+  border: 1px solid #b9cfca;
+}
+
+.secondary-button:hover {
+  background: #dcebe7;
+}
+
+.icon-button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+
 button:hover,
 .button:hover {
   background: var(--accent-dark);
@@ -181,6 +199,85 @@ th {
   font-weight: 700;
 }
 
+.folder-dialog {
+  width: min(760px, calc(100vw - 28px));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+}
+
+.folder-dialog::backdrop {
+  background: rgba(19, 43, 42, 0.38);
+}
+
+.folder-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.folder-dialog-header h2 {
+  margin: 0;
+}
+
+.folder-dialog-body {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px 18px;
+}
+
+.compact-toolbar {
+  margin-bottom: 0;
+}
+
+.folder-roots {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.folder-root-button,
+.folder-entry {
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--text);
+}
+
+.folder-list {
+  max-height: min(420px, 52vh);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.folder-list p {
+  padding: 12px;
+  margin: 0;
+}
+
+.folder-entry {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.folder-entry:last-child {
+  border-bottom: 0;
+}
+
+.folder-entry:hover {
+  background: #eef4f2;
+  color: var(--text);
+}
+
 @media (max-width: 720px) {
   .topbar {
     align-items: flex-start;
@@ -197,4 +294,3 @@ th {
     overflow-x: auto;
   }
 }
-
