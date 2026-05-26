@@ -7,8 +7,8 @@ DEFAULT_BRANCH="main"
 
 CTID=""
 HOSTNAME="tvsorter"
-STORAGE="auto"
-TEMPLATE_STORAGE="local"
+STORAGE="${TVSORTER_STORAGE:-prompt}"
+TEMPLATE_STORAGE="${TVSORTER_TEMPLATE_STORAGE:-prompt}"
 TEMPLATE=""
 BRIDGE="vmbr0"
 IP_CONFIG="dhcp"
@@ -36,8 +36,9 @@ Required:
 
 Common options:
   --hostname NAME              Container hostname (default: tvsorter)
-  --storage NAME|auto          Root disk storage (default: auto)
-  --template-storage NAME      Template storage (default: local)
+  --storage NAME|auto|prompt   Root disk storage (default: prompt when interactive, auto otherwise)
+  --template-storage NAME|prompt
+                               Template storage (default: prompt when interactive, local otherwise)
   --bridge NAME                Network bridge (default: vmbr0)
   --ip dhcp|CIDR               IP config, for example dhcp or 192.168.1.50/24 (default: dhcp)
   --gateway IP                 Gateway for static IP configs
@@ -57,7 +58,6 @@ Common options:
 Examples:
   scripts/create-proxmox-lxc.sh \
     --ctid 120 \
-    --storage auto \
     --mount /tank/downloads:/mnt/downloads \
     --mount /tank/media/TV:/mnt/media/TV \
     --mount /tank/media/Anime:/mnt/media/Anime
@@ -92,6 +92,10 @@ list_container_storage_ids() {
   pvesm status --content images 2>/dev/null | awk 'NR > 1 {print $1}'
 }
 
+list_template_storage_ids() {
+  pvesm status --content vztmpl 2>/dev/null | awk 'NR > 1 {print $1}'
+}
+
 storage_exists() {
   local storage="$1"
   pvesm status --storage "$storage" >/dev/null 2>&1
@@ -109,6 +113,87 @@ choose_root_storage() {
   [[ -n "$selected" ]] || selected="$(list_storage_ids | awk 'NF {print $1; exit}')"
   [[ -n "$selected" ]] || die "No Proxmox storage found"
   printf '%s\n' "$selected"
+}
+
+choose_template_storage() {
+  local selected=""
+  selected="$(list_template_storage_ids | awk 'NF && !seen[$1]++ {print $1; exit}')"
+  [[ -n "$selected" ]] || selected="$(list_storage_ids | awk 'NF {print $1; exit}')"
+  [[ -n "$selected" ]] || die "No Proxmox storage found"
+  printf '%s\n' "$selected"
+}
+
+prompt_storage_choice() {
+  local title="$1"
+  shift
+  local -a options=("$@")
+  local choice
+  local index
+
+  [[ "${#options[@]}" -gt 0 ]] || die "No storage choices available for: $title"
+
+  printf '\n%s\n' "$title" >&2
+  for index in "${!options[@]}"; do
+    printf '  %s) %s\n' "$((index + 1))" "${options[$index]}" >&2
+  done
+
+  while true; do
+    read -r -p "Select storage [1]: " choice
+    choice="${choice:-1}"
+    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#options[@]} )); then
+      printf '%s\n' "${options[$((choice - 1))]}"
+      return 0
+    fi
+    printf 'Invalid choice: %s\n' "$choice" >&2
+  done
+}
+
+resolve_root_storage() {
+  local storage="$1"
+  local -a choices=()
+
+  if [[ "$storage" == "prompt" ]]; then
+    if [[ -t 0 ]]; then
+      while IFS= read -r item; do
+        [[ -n "$item" ]] && choices+=("$item")
+      done < <(list_container_storage_ids | awk 'NF && !seen[$1]++')
+      if [[ "${#choices[@]}" -eq 0 ]]; then
+        while IFS= read -r item; do
+          [[ -n "$item" ]] && choices+=("$item")
+        done < <(list_storage_ids | awk 'NF && !seen[$1]++')
+      fi
+      prompt_storage_choice "Select root disk storage" "${choices[@]}"
+    else
+      choose_root_storage
+    fi
+  elif [[ "$storage" == "auto" ]]; then
+    choose_root_storage
+  else
+    printf '%s\n' "$storage"
+  fi
+}
+
+resolve_template_storage() {
+  local storage="$1"
+  local -a choices=()
+
+  if [[ "$storage" == "prompt" ]]; then
+    if [[ -t 0 ]]; then
+      while IFS= read -r item; do
+        [[ -n "$item" ]] && choices+=("$item")
+      done < <(list_template_storage_ids | awk 'NF && !seen[$1]++')
+      if [[ "${#choices[@]}" -eq 0 ]]; then
+        while IFS= read -r item; do
+          [[ -n "$item" ]] && choices+=("$item")
+        done < <(list_storage_ids | awk 'NF && !seen[$1]++')
+      fi
+      prompt_storage_choice "Select template storage" "${choices[@]}"
+    else
+      printf 'local\n'
+    fi
+  else
+    printf '%s\n' "$storage"
+  fi
 }
 
 available_storage_message() {
@@ -252,10 +337,9 @@ require_cmd pveam
 require_cmd pvesm
 
 pct status "$CTID" >/dev/null 2>&1 && die "CTID $CTID already exists"
-if [[ "$STORAGE" == "auto" ]]; then
-  STORAGE="$(choose_root_storage)"
-  log "Using root storage: $STORAGE"
-elif ! storage_exists "$STORAGE"; then
+STORAGE="$(resolve_root_storage "$STORAGE")"
+log "Using root storage: $STORAGE"
+if ! storage_exists "$STORAGE"; then
   die "Storage not found: $STORAGE. $(available_storage_message)"
 fi
 
@@ -263,6 +347,8 @@ if ! storage_supports_container_rootfs "$STORAGE"; then
   log "Warning: could not confirm that storage '$STORAGE' supports container root disks. Continuing because Proxmox may still accept it."
 fi
 
+TEMPLATE_STORAGE="$(resolve_template_storage "$TEMPLATE_STORAGE")"
+log "Using template storage: $TEMPLATE_STORAGE"
 if ! storage_exists "$TEMPLATE_STORAGE"; then
   die "Template storage not found: $TEMPLATE_STORAGE. $(available_storage_message)"
 fi

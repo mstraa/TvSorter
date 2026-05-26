@@ -149,3 +149,4 @@ Show Name (Year)/Season XX/Show Name (Year) - SXXEYY - Episode Name - Quality.ex
 - Verified with pytest and browser smoke test against `/tmp/tvsorter-demo`.
 - Added `scripts/create-proxmox-lxc.sh` to create a privileged Debian LXC on Proxmox and install TvSorter from GitHub.
 - Updated the Proxmox script to default to `--storage auto` because not every node has `local-lvm`.
+- Updated the Proxmox script to prompt for root disk and template storage in interactive terminals.
