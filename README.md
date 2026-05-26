@@ -36,10 +36,12 @@ Run this from the Proxmox VE host to create a privileged Debian LXC and install 
 ```sh
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/mstraa/TvSorter/main/scripts/create-proxmox-lxc.sh)" -- \
   --ctid 120 \
-  --storage local-lvm \
+  --storage auto \
   --mount /tank/downloads:/mnt/downloads \
   --mount /tank/media/TV:/mnt/media/TV \
   --mount /tank/media/Anime:/mnt/media/Anime
 ```
 
 Use `--help` to see static IP, SSH key, storage, and sizing options.
+
+If your Proxmox node does not have `local-lvm`, use `--storage auto` or inspect choices with `pvesm status`.

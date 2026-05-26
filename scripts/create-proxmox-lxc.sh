@@ -7,7 +7,7 @@ DEFAULT_BRANCH="main"
 
 CTID=""
 HOSTNAME="tvsorter"
-STORAGE="local-lvm"
+STORAGE="auto"
 TEMPLATE_STORAGE="local"
 TEMPLATE=""
 BRIDGE="vmbr0"
@@ -36,7 +36,7 @@ Required:
 
 Common options:
   --hostname NAME              Container hostname (default: tvsorter)
-  --storage NAME               Root disk storage (default: local-lvm)
+  --storage NAME|auto          Root disk storage (default: auto)
   --template-storage NAME      Template storage (default: local)
   --bridge NAME                Network bridge (default: vmbr0)
   --ip dhcp|CIDR               IP config, for example dhcp or 192.168.1.50/24 (default: dhcp)
@@ -57,7 +57,7 @@ Common options:
 Examples:
   scripts/create-proxmox-lxc.sh \
     --ctid 120 \
-    --storage local-lvm \
+    --storage auto \
     --mount /tank/downloads:/mnt/downloads \
     --mount /tank/media/TV:/mnt/media/TV \
     --mount /tank/media/Anime:/mnt/media/Anime
@@ -81,6 +81,42 @@ die() {
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
+}
+
+list_storage_ids() {
+  pvesm status 2>/dev/null | awk 'NR > 1 {print $1}'
+}
+
+list_container_storage_ids() {
+  pvesm status --content rootdir 2>/dev/null | awk 'NR > 1 {print $1}'
+  pvesm status --content images 2>/dev/null | awk 'NR > 1 {print $1}'
+}
+
+storage_exists() {
+  local storage="$1"
+  pvesm status --storage "$storage" >/dev/null 2>&1
+}
+
+storage_supports_container_rootfs() {
+  local storage="$1"
+  pvesm status --storage "$storage" --content rootdir >/dev/null 2>&1 \
+    || pvesm status --storage "$storage" --content images >/dev/null 2>&1
+}
+
+choose_root_storage() {
+  local selected=""
+  selected="$(list_container_storage_ids | awk 'NF && !seen[$1]++ {print $1; exit}')"
+  [[ -n "$selected" ]] || selected="$(list_storage_ids | awk 'NF {print $1; exit}')"
+  [[ -n "$selected" ]] || die "No Proxmox storage found"
+  printf '%s\n' "$selected"
+}
+
+available_storage_message() {
+  local all
+  local container
+  all="$(list_storage_ids | paste -sd ', ' -)"
+  container="$(list_container_storage_ids | awk 'NF && !seen[$1]++' | paste -sd ', ' -)"
+  printf 'Available storage: %s. Container-capable candidates: %s' "${all:-none}" "${container:-unknown}"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -216,8 +252,20 @@ require_cmd pveam
 require_cmd pvesm
 
 pct status "$CTID" >/dev/null 2>&1 && die "CTID $CTID already exists"
-pvesm status --storage "$STORAGE" >/dev/null 2>&1 || die "Storage not found: $STORAGE"
-pvesm status --storage "$TEMPLATE_STORAGE" >/dev/null 2>&1 || die "Template storage not found: $TEMPLATE_STORAGE"
+if [[ "$STORAGE" == "auto" ]]; then
+  STORAGE="$(choose_root_storage)"
+  log "Using root storage: $STORAGE"
+elif ! storage_exists "$STORAGE"; then
+  die "Storage not found: $STORAGE. $(available_storage_message)"
+fi
+
+if ! storage_supports_container_rootfs "$STORAGE"; then
+  log "Warning: could not confirm that storage '$STORAGE' supports container root disks. Continuing because Proxmox may still accept it."
+fi
+
+if ! storage_exists "$TEMPLATE_STORAGE"; then
+  die "Template storage not found: $TEMPLATE_STORAGE. $(available_storage_message)"
+fi
 
 if [[ -z "$TEMPLATE" ]]; then
   log "Finding latest Debian standard LXC template"
@@ -363,4 +411,3 @@ if [[ -n "$ip_output" ]]; then
 else
   log "Open the container summary in Proxmox to find its IP, then browse to port 8080"
 fi
-

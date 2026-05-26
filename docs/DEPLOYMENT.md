@@ -9,7 +9,7 @@ From the Proxmox VE host, run:
 ```sh
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/mstraa/TvSorter/main/scripts/create-proxmox-lxc.sh)" -- \
   --ctid 120 \
-  --storage local-lvm \
+  --storage auto \
   --mount /tank/downloads:/mnt/downloads \
   --mount /tank/media/TV:/mnt/media/TV \
   --mount /tank/media/Anime:/mnt/media/Anime
@@ -24,6 +24,8 @@ The script:
 - Creates and starts the `tvsorter.service` systemd unit.
 
 Use `scripts/create-proxmox-lxc.sh --help` for all options.
+
+`--storage auto` chooses the first Proxmox storage that advertises container root disk support. To choose manually, run `pvesm status` on the Proxmox host and pass the wanted storage name with `--storage`.
 
 ## Package Install
 
