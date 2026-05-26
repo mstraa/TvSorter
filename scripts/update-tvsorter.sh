@@ -17,6 +17,13 @@ die() {
 configure_autologin() {
   log "Configuring Proxmox console autologin"
 
+  install -d /etc/systemd/system/console-getty.service.d
+  cat >/etc/systemd/system/console-getty.service.d/override.conf <<'UNIT'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin root --noclear --keep-baud console 115200,38400,9600 $TERM
+UNIT
+
   install -d /etc/systemd/system/container-getty@1.service.d
   cat >/etc/systemd/system/container-getty@1.service.d/override.conf <<'UNIT'
 [Service]
@@ -30,6 +37,15 @@ UNIT
 ExecStart=
 ExecStart=-/sbin/agetty --autologin root --noclear %I $TERM
 UNIT
+}
+
+restart_getty_units() {
+  systemctl daemon-reload
+  for unit in console-getty.service container-getty@1.service getty@tty1.service; do
+    if systemctl list-unit-files "$unit" --no-legend 2>/dev/null | grep -q "$unit"; then
+      systemctl restart "$unit" || true
+    fi
+  done
 }
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
@@ -66,6 +82,7 @@ log "Updating Python dependencies"
 "$APP_DIR/.venv/bin/python" -m pip install -e "$APP_DIR"
 
 configure_autologin
+restart_getty_units
 
 log "Restarting ${SERVICE_NAME}.service"
 systemctl daemon-reload

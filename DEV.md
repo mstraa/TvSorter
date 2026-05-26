@@ -153,3 +153,4 @@ Show Name (Year)/Season XX/Show Name (Year) - SXXEYY - Episode Name - Quality.ex
 - Added in-container `update` command installation for pulling latest GitHub `main`, refreshing dependencies, and restarting `tvsorter.service`.
 - Added Proxmox LXC console autologin via systemd getty overrides during install and update.
 - Added Settings folder picker for browsing LXC-mounted folders when selecting input and output roots.
+- Expanded autologin coverage to include `console-getty.service` and restart available getty units after applying overrides.

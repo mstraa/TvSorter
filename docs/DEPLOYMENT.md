@@ -27,7 +27,7 @@ Use `scripts/create-proxmox-lxc.sh --help` for all options.
 
 When run interactively, the script prompts for root disk and template storage. `--storage auto` chooses the first Proxmox storage that advertises container root disk support. To choose manually, run `pvesm status` on the Proxmox host and pass the wanted storage name with `--storage`.
 
-Console autologin is configured with systemd overrides for `container-getty@1.service` and `getty@tty1.service`, matching the usual Proxmox helper-script behavior.
+Console autologin is configured with systemd overrides for `console-getty.service`, `container-getty@1.service`, and `getty@tty1.service`, matching the usual Proxmox helper-script behavior.
 
 ## Updating In The LXC
 
