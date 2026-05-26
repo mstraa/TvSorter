@@ -14,6 +14,24 @@ die() {
   exit 1
 }
 
+configure_autologin() {
+  log "Configuring Proxmox console autologin"
+
+  install -d /etc/systemd/system/container-getty@1.service.d
+  cat >/etc/systemd/system/container-getty@1.service.d/override.conf <<'UNIT'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin root --noclear --keep-baud tty%I 115200,38400,9600 $TERM
+UNIT
+
+  install -d /etc/systemd/system/getty@tty1.service.d
+  cat >/etc/systemd/system/getty@tty1.service.d/override.conf <<'UNIT'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin root --noclear %I $TERM
+UNIT
+}
+
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
   die "Run update as root inside the TvSorter LXC"
 fi
@@ -47,6 +65,8 @@ log "Updating Python dependencies"
 "$APP_DIR/.venv/bin/python" -m pip install --upgrade pip
 "$APP_DIR/.venv/bin/python" -m pip install -e "$APP_DIR"
 
+configure_autologin
+
 log "Restarting ${SERVICE_NAME}.service"
 systemctl daemon-reload
 systemctl restart "${SERVICE_NAME}.service"
@@ -57,4 +77,3 @@ else
   systemctl --no-pager --full status "${SERVICE_NAME}.service" || true
   die "${SERVICE_NAME}.service did not start cleanly"
 fi
-

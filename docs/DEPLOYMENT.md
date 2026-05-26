@@ -20,15 +20,19 @@ The script:
 - Downloads a Debian standard template through `pveam` when needed.
 - Adds any requested bind mounts.
 - Installs Python, ffmpeg, Git, and TvSorter from GitHub.
+- Configures the Proxmox LXC console to autologin as root.
 - Creates and starts the `tvsorter.service` systemd unit.
 
 Use `scripts/create-proxmox-lxc.sh --help` for all options.
 
 When run interactively, the script prompts for root disk and template storage. `--storage auto` chooses the first Proxmox storage that advertises container root disk support. To choose manually, run `pvesm status` on the Proxmox host and pass the wanted storage name with `--storage`.
 
+Console autologin is configured with systemd overrides for `container-getty@1.service` and `getty@tty1.service`, matching the usual Proxmox helper-script behavior.
+
 ## Updating In The LXC
 
 The Proxmox creation script installs `/usr/local/bin/update`, which updates `/opt/tvsorter` to the latest GitHub `main`, refreshes the Python virtual environment, and restarts `tvsorter.service`.
+It also reapplies the console autologin systemd overrides.
 
 Inside the LXC:
 

@@ -432,6 +432,22 @@ repo_url="$1"
 repo_branch="$2"
 update_url="$3"
 
+configure_autologin() {
+  install -d /etc/systemd/system/container-getty@1.service.d
+  cat >/etc/systemd/system/container-getty@1.service.d/override.conf <<'UNIT'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin root --noclear --keep-baud tty%I 115200,38400,9600 $TERM
+UNIT
+
+  install -d /etc/systemd/system/getty@tty1.service.d
+  cat >/etc/systemd/system/getty@tty1.service.d/override.conf <<'UNIT'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin root --noclear %I $TERM
+UNIT
+}
+
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y ca-certificates curl git ffmpeg python3 python3-venv
@@ -458,6 +474,8 @@ python3 -m venv /opt/tvsorter/.venv
 curl -fsSL "$update_url" -o /usr/local/bin/update-tvsorter
 chmod 0755 /usr/local/bin/update-tvsorter
 ln -sf /usr/local/bin/update-tvsorter /usr/local/bin/update
+
+configure_autologin
 
 cat >/etc/systemd/system/tvsorter.service <<'UNIT'
 [Unit]

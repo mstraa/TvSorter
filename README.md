@@ -45,6 +45,8 @@ The script prompts for root disk and template storage when run interactively. Us
 
 If your Proxmox node does not have `local-lvm`, use the prompt, pass `--storage auto`, or inspect choices with `pvesm status`.
 
+The LXC console is configured to autologin as root, matching the behavior of common Proxmox helper-script containers.
+
 Inside the LXC, update TvSorter to the latest GitHub `main` with:
 
 ```sh
