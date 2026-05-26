@@ -36,7 +36,7 @@ Keep this file updated as implementation progresses. Record completed work, deci
 - Use non-login public metadata APIs.
 - Default TV provider: TVMaze.
 - Default Anime provider: Jikan.
-- Film support uses Wikidata lookup plus filename parsing/manual correction fallback.
+- Film support uses no-login IMDb-style suggestion lookup, then Wikidata, plus filename parsing/manual correction fallback.
 
 ## Target Naming Format
 
@@ -168,3 +168,4 @@ Film Name (Year)/Film Name (Year) - Quality.ext
 - Expanded autologin coverage to include `console-getty.service` and restart available getty units after applying overrides.
 - Added Film media type with separate output root, film parser, film naming, import support, and SQLite migration for existing DBs.
 - Added anime-style `E02` parsing, Jikan throttling/retry behavior, batch provider de-duplication, and Wikidata film lookup.
+- Changed Film lookup to prefer movie-focused IMDb-style suggestion results before Wikidata, and added Wikimedia API identification headers plus cleaner 401/403 metadata fallback errors.

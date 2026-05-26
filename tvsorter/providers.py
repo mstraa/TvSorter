@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import quote_plus
+from urllib.parse import quote, quote_plus
 
 import httpx
 
@@ -40,7 +41,7 @@ class MetadataProviders:
         if media_type == "anime":
             return await self.search_jikan(query)
         if media_type == "film":
-            return await self.search_wikidata_films(query)
+            return await self.search_films(query)
         raise ValueError(f"Unsupported media type: {media_type}")
 
     async def episodes(self, media_type: str, provider_show_id: str) -> list[EpisodeCandidate]:
@@ -138,6 +139,49 @@ class MetadataProviders:
             for index, item in enumerate(cached.get("data", []))
         ]
 
+    async def search_films(self, query: str) -> list[ShowCandidate]:
+        errors = []
+        for provider_search in (self.search_imdb_suggestions, self.search_wikidata_films):
+            try:
+                candidates = await provider_search(query)
+            except httpx.HTTPError as exc:
+                errors.append(exc)
+                continue
+            if candidates:
+                return candidates
+        if errors:
+            raise errors[0]
+        return []
+
+    async def search_imdb_suggestions(self, query: str) -> list[ShowCandidate]:
+        cache_key = f"imdb:suggest:film:{query.lower()}"
+        cached = self.database.get_cache(cache_key)
+        if cached is None:
+            first_char = _first_query_letter(query)
+            url = f"https://v3.sg.media-imdb.com/suggestion/{first_char}/{quote(query.lower(), safe='')}.json"
+            cached = await _get_json(url)
+            self.database.set_cache(cache_key, cached)
+
+        candidates = []
+        for item in cached.get("d", []):
+            if item.get("qid") not in {"movie", "tvMovie"}:
+                continue
+            title = item.get("l")
+            provider_id = item.get("id")
+            if not title or not provider_id:
+                continue
+            summary_parts = [part for part in [item.get("q"), item.get("s")] if part]
+            candidates.append(
+                ShowCandidate(
+                    provider="imdb",
+                    provider_id=str(provider_id),
+                    title=title,
+                    year=_optional_year(item.get("y")),
+                    summary=" - ".join(summary_parts)[:240],
+                )
+            )
+        return candidates[:10]
+
     async def search_wikidata_films(self, query: str) -> list[ShowCandidate]:
         cache_key = f"wikidata:film:search:{query.lower()}"
         cached = self.database.get_cache(cache_key)
@@ -187,7 +231,12 @@ class MetadataProviders:
 
 
 async def _get_json(url: str) -> Any:
-    async with httpx.AsyncClient(timeout=15.0, headers={"User-Agent": "TvSorter/0.1"}) as client:
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "TvSorter/0.1 (+https://github.com/mstraa/TvSorter)",
+        "Api-User-Agent": "TvSorter/0.1 (+https://github.com/mstraa/TvSorter)",
+    }
+    async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
         for attempt in range(3):
             response = await client.get(url)
             if response.status_code != 429:
@@ -210,9 +259,20 @@ def _year_from_date(value: str | None) -> int | None:
 
 
 def _strip_html(value: str) -> str:
-    import re
-
     return re.sub(r"<[^>]+>", "", value).strip()
+
+
+def _first_query_letter(query: str) -> str:
+    match = re.search(r"[a-z0-9]", query.lower())
+    return match.group(0) if match else "x"
+
+
+def _optional_year(value: object) -> int | None:
+    try:
+        year = int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return year if 1800 <= year <= 2100 else None
 
 
 def _looks_like_film(entity: dict[str, Any], description: str) -> bool:
@@ -235,7 +295,5 @@ def _wikidata_release_year(entity: dict[str, Any]) -> int | None:
 
 
 def _year_from_description(description: str) -> int | None:
-    import re
-
     match = re.search(r"\b((?:19|20)\d{2})\b", description)
     return int(match.group(1)) if match else None

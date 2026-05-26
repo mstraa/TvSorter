@@ -64,10 +64,11 @@ Use Jikan public API by default.
 
 ### Film
 
-Use Wikidata public API plus filename parsing/manual correction by default.
+Use a no-login film lookup chain plus filename parsing/manual correction by default.
 
 - No logged/API-key provider is required for the MVP.
-- Wikidata results should be filtered to film-like entities.
+- Film lookup should try IMDb-style public suggestion results first for title/year candidates.
+- Wikidata should remain a fallback and should be queried with a descriptive API user agent.
 - Optional API-key providers may be added later for richer film metadata.
 
 ### Future Optional Providers
@@ -122,7 +123,7 @@ Film output root:
 9. App searches the matching metadata provider when available:
    - TVMaze for TV
    - Jikan for Anime
-   - Wikidata for Film
+   - IMDb-style suggestion search, then Wikidata fallback for Film
 10. App shows proposed matches.
 11. User may manually override:
    - provider result
@@ -184,6 +185,7 @@ Provider calls should be cached and de-duplicated during batch matching.
 
 - Jikan requests should be throttled to avoid `429 Too Many Requests`.
 - Repeated files from the same show should reuse one show search and one episode-list lookup.
+- Film lookup should prefer a movie-focused provider before generic knowledge-base lookup.
 - If a provider still rate-limits or fails, the UI should keep the filename-parsed fallback available for manual correction.
 
 ## Import Actions

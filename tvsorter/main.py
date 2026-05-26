@@ -437,8 +437,11 @@ async def _enrich_film_match(parsed: object, search_cache: dict) -> dict:
 
 
 def _metadata_error_message(exc: Exception) -> str:
-    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429:
-        return "Metadata provider is rate-limiting requests. Filename parsing was used for this item."
+    if isinstance(exc, httpx.HTTPStatusError):
+        if exc.response.status_code == 429:
+            return "Metadata provider is rate-limiting requests. Filename parsing was used for this item."
+        if exc.response.status_code in {401, 403}:
+            return "Metadata provider refused the request. Filename parsing was used for this item."
     return str(exc)
 
 
