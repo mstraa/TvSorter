@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>History</h1>
+  <table>
+    <thead><tr><th>When</th><th>Type</th><th>Show</th><th>Episode</th><th>Action</th><th>Result</th></tr></thead>
+    <tbody>
+    {% for item in imports %}
+      <tr>
+        <td>{{ item.imported_at }}</td>
+        <td>{{ item.media_type }}</td>
+        <td>{{ item.show_title }}{% if item.show_year %} ({{ item.show_year }}){% endif %}</td>
+        <td>S{{ "%02d"|format(item.season_number) }}E{{ "%02d"|format(item.episode_number) }} - {{ item.episode_title }}</td>
+        <td>{{ item.action }}</td>
+        <td>{{ item.result }}{% if item.error %}: {{ item.error }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+

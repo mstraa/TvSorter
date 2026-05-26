@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>Match Queue</h1>
+  {% if not output_root %}
+    <p class="error">No {{ media_type }} output root configured. Configure it before importing.</p>
+  {% endif %}
+  {% if not rows %}
+    <p>No video files selected.</p>
+  {% else %}
+    <form method="post" class="stack">
+      <input type="hidden" name="media_type" value="{{ media_type }}">
+      <div class="toolbar">
+        <label>
+          Action
+          <select name="action">
+            <option value="hardlink">Hardlink</option>
+            <option value="copy">Copy</option>
+            <option value="test">Test</option>
+          </select>
+        </label>
+        <label>
+          Conflict
+          <select name="conflict_policy">
+            <option value="skip">Skip</option>
+            <option value="replace">Replace</option>
+            <option value="index">Keep Both</option>
+            <option value="fail">Fail</option>
+          </select>
+        </label>
+        <button formaction="/preview" type="submit">Preview</button>
+        <button formaction="/imports" type="submit" {% if not output_root %}disabled{% endif %}>Import</button>
+      </div>
+      {% for row in rows %}
+        <fieldset class="match-row">
+          <legend>{{ row.source_path.name }}</legend>
+          {% if row.metadata_error %}
+            <p class="error">Metadata lookup failed: {{ row.metadata_error }}</p>
+          {% endif %}
+          <input type="hidden" name="source_path" value="{{ row.source_path }}">
+          <input class="provider-input" type="hidden" name="provider" value="{{ row.provider }}">
+          <input class="provider-id-input" type="hidden" name="provider_show_id" value="{{ row.provider_show_id }}">
+          <div class="grid">
+            <label>Show title <input class="show-title-input" name="show_title" value="{{ row.show_title }}"></label>
+            <label>Year <input class="show-year-input" name="show_year" value="{{ row.show_year or '' }}"></label>
+            <label>Season <input name="season_number" type="number" min="0" value="{{ row.parsed.season }}"></label>
+            <label>Episode <input name="episode_number" type="number" min="0" value="{{ row.parsed.episode }}"></label>
+            <label>Episode title <input name="episode_title" value="{{ row.episode_title }}"></label>
+            <label>Quality <input name="quality" value="{{ row.parsed.quality }}"></label>
+          </div>
+          {% if row.candidates %}
+            <details>
+              <summary>Metadata candidates</summary>
+              <label>
+                Selected show
+                <select class="candidate-select">
+                  {% for candidate in row.candidates %}
+                    <option
+                      value="{{ candidate.provider }}|{{ candidate.provider_id }}|{{ candidate.title }}|{{ candidate.year or '' }}"
+                      {% if loop.first %}selected{% endif %}
+                    >
+                      {{ candidate.title }}{% if candidate.year %} ({{ candidate.year }}){% endif %} - {{ candidate.provider }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </label>
+              <ul class="muted">
+                {% for candidate in row.candidates %}
+                  <li>{{ candidate.title }}{% if candidate.year %} ({{ candidate.year }}){% endif %} - {{ candidate.summary }}</li>
+                {% endfor %}
+              </ul>
+            </details>
+          {% endif %}
+          <p class="muted">{{ row.source_path }}</p>
+        </fieldset>
+      {% endfor %}
+    </form>
+  {% endif %}
+</section>
+{% endblock %}

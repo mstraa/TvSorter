@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>Import Results</h1>
+  <table>
+    <thead><tr><th>Source</th><th>Destination</th><th>Result</th><th>Error</th></tr></thead>
+    <tbody>
+    {% for result in results %}
+      <tr>
+        <td>{{ result.request.source_path }}</td>
+        <td>{{ result.final_path }}</td>
+        <td>{{ result.result }}</td>
+        <td>{{ result.error or "" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <a class="button" href="/library">Open Library</a>
+</section>
+{% endblock %}
+

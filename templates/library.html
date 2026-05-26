@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>Library</h1>
+  <form method="post" action="/library/rescan" class="toolbar">
+    <button type="submit">Rescan Output Folders</button>
+  </form>
+  <table>
+    <thead><tr><th>Type</th><th>Path</th><th>Present</th><th>Size</th></tr></thead>
+    <tbody>
+    {% for file in files %}
+      <tr>
+        <td>{{ file.media_type }}</td>
+        <td>{{ file.output_path }}</td>
+        <td>{{ "yes" if file.present else "missing" }}</td>
+        <td>{{ file.size or "" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+

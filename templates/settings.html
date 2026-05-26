@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>Settings</h1>
+  <form method="post" action="/settings" class="stack">
+    <label>
+      Input roots
+      <textarea name="input_roots" rows="6" placeholder="/mnt/downloads">{{ input_roots_text }}</textarea>
+    </label>
+    <label>
+      TV output root
+      <input name="tv_output_root" value="{{ tv_output_root }}" placeholder="/mnt/media/TV">
+    </label>
+    <label>
+      Anime output root
+      <input name="anime_output_root" value="{{ anime_output_root }}" placeholder="/mnt/media/Anime">
+    </label>
+    <button type="submit">Save Settings</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Permission Checks</h2>
+  {% if checks %}
+    <table>
+      <thead><tr><th>Path</th><th>Exists</th><th>Read</th><th>Write</th></tr></thead>
+      <tbody>
+      {% for check in checks %}
+        <tr>
+          <td>{{ check.label }}</td>
+          <td>{{ "yes" if check.exists else "no" }}</td>
+          <td>{{ "yes" if check.read else "no" }}</td>
+          <td>{{ "yes" if check.write else "-" }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">No paths configured yet.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
