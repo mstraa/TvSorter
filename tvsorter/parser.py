@@ -10,6 +10,7 @@ RELEASE_TRAIL_RE = re.compile(
     r"(?i)\b(2160p|1080p|720p|480p|web[ ._-]?dl|webrip|hdtv|bluray|brrip|x264|x265|h[ ._-]?264|h[ ._-]?265|hevc|aac|ddp?5?[ ._-]?1)\b.*$"
 )
 YEAR_RE = re.compile(r"(?:^|[\s._(-])((?:19|20)\d{2})(?:$|[\s._)-])")
+YEAR_TOKEN_RE = re.compile(r"(?:19|20)\d{2}")
 SXXEYY_RE = re.compile(r"(?i)\bS(?P<season>\d{1,2})E(?P<episode>\d{1,3})\b")
 ONE_X_TWO_RE = re.compile(r"(?i)\b(?P<season>\d{1,2})x(?P<episode>\d{1,3})\b")
 SEASON_EP_RE = re.compile(
@@ -47,6 +48,23 @@ def parse_media_filename(path: str | Path) -> ParsedMedia:
     )
 
 
+def parse_film_filename(path: str | Path) -> ParsedMedia:
+    source_name = Path(path).name
+    stem = Path(path).stem
+    quality = detect_quality(stem)
+    year, title_stem = _extract_film_year(stem)
+    title = _clean_film_title(title_stem)
+    return ParsedMedia(
+        source_name=source_name,
+        title=title or "Unknown Film",
+        year=year,
+        season=0,
+        episode=0,
+        episode_title="Film",
+        quality=quality,
+    )
+
+
 def detect_quality(value: str) -> str:
     match = QUALITY_RE.search(value)
     return match.group(1).lower().replace("p", "p") if match else "Unknown"
@@ -65,8 +83,22 @@ def _find_year(stem: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def _extract_film_year(stem: str) -> tuple[int | None, str]:
+    matches = list(YEAR_TOKEN_RE.finditer(stem))
+    if not matches:
+        return None, stem
+    match = matches[-1]
+    title_stem = f"{stem[:match.start()]} {stem[match.end():]}"
+    return int(match.group(0)), title_stem
+
+
 def _clean_title(value: str) -> str:
     value = YEAR_RE.sub(" ", value)
+    return _clean_tokens(value)
+
+
+def _clean_film_title(value: str) -> str:
+    value = RELEASE_TRAIL_RE.sub(" ", value)
     return _clean_tokens(value)
 
 

@@ -36,11 +36,21 @@ Keep this file updated as implementation progresses. Record completed work, deci
 - Use non-login public metadata APIs.
 - Default TV provider: TVMaze.
 - Default Anime provider: Jikan.
+- Film support uses filename parsing/manual correction for now; no no-login film metadata provider is required for MVP.
 
 ## Target Naming Format
 
 ```text
+TV/Anime:
+
+```text
 Show Name (Year)/Season XX/Show Name (Year) - SXXEYY - Episode Name - Quality.ext
+```
+
+Film:
+
+```text
+Film Name (Year)/Film Name (Year) - Quality.ext
 ```
 
 ## Planned Milestones
@@ -59,6 +69,7 @@ Show Name (Year)/Season XX/Show Name (Year) - SXXEYY - Episode Name - Quality.ex
 - [x] Add input roots.
 - [x] Add TV output root.
 - [x] Add Anime output root.
+- [x] Add Film output root.
 - [x] Add permission checks.
 
 ### 3. Filesystem Browser
@@ -84,6 +95,7 @@ Show Name (Year)/Season XX/Show Name (Year) - SXXEYY - Episode Name - Quality.ex
 - [x] Add Jikan provider.
 - [x] Add request cache.
 - [x] Add manual override fields in import form.
+- [x] Add Film manual metadata path without provider lookup.
 
 ### 6. Import Engine
 
@@ -154,3 +166,4 @@ Show Name (Year)/Season XX/Show Name (Year) - SXXEYY - Episode Name - Quality.ex
 - Added Proxmox LXC console autologin via systemd getty overrides during install and update.
 - Added Settings folder picker for browsing LXC-mounted folders when selecting input and output roots.
 - Expanded autologin coverage to include `console-getty.service` and restart available getty units after applying overrides.
+- Added Film media type with separate output root, film parser, film naming, import support, and SQLite migration for existing DBs.

@@ -1,4 +1,4 @@
-from tvsorter.parser import parse_media_filename
+from tvsorter.parser import parse_film_filename, parse_media_filename
 
 
 def test_parse_sxxeyy_filename() -> None:
@@ -20,3 +20,14 @@ def test_parse_one_x_two_filename() -> None:
     assert parsed.episode == 3
     assert parsed.episode_title == "Honky Tonk Women"
     assert parsed.quality == "720p"
+
+
+def test_parse_film_filename() -> None:
+    parsed = parse_film_filename("Blade.Runner.2049.2017.2160p.BluRay.x265.mkv")
+
+    assert parsed.title == "Blade Runner 2049"
+    assert parsed.year == 2017
+    assert parsed.season == 0
+    assert parsed.episode == 0
+    assert parsed.episode_title == "Film"
+    assert parsed.quality == "2160p"

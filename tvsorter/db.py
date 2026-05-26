@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS imports (
     source_device INTEGER,
     source_inode INTEGER,
     output_path TEXT NOT NULL,
-    media_type TEXT NOT NULL CHECK (media_type IN ('tv', 'anime')),
+    media_type TEXT NOT NULL CHECK (media_type IN ('tv', 'anime', 'film')),
     provider TEXT,
     provider_show_id TEXT,
     show_title TEXT NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS imports (
 
 CREATE TABLE IF NOT EXISTS library_files (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    media_type TEXT NOT NULL CHECK (media_type IN ('tv', 'anime')),
+    media_type TEXT NOT NULL CHECK (media_type IN ('tv', 'anime', 'film')),
     output_path TEXT NOT NULL UNIQUE,
     size INTEGER,
     mtime REAL,
@@ -74,6 +74,7 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as conn:
             conn.executescript(SCHEMA)
+            self._migrate_media_type_checks(conn)
 
     @contextmanager
     def connect(self) -> Iterable[sqlite3.Connection]:
@@ -226,6 +227,34 @@ class Database:
                 (key, json.dumps(value)),
             )
 
+    def _migrate_media_type_checks(self, conn: sqlite3.Connection) -> None:
+        for table in ("imports", "library_files"):
+            row = conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+                (table,),
+            ).fetchone()
+            if row and "media_type IN ('tv', 'anime')" in row["sql"]:
+                self._recreate_media_table(conn, table)
+
+    def _recreate_media_table(self, conn: sqlite3.Connection, table: str) -> None:
+        temp_table = f"{table}_migration"
+        conn.execute(f"ALTER TABLE {table} RENAME TO {temp_table}")
+        conn.executescript(_table_schema(table))
+        old_columns = [
+            row["name"]
+            for row in conn.execute(f"PRAGMA table_info({temp_table})").fetchall()
+        ]
+        new_columns = [
+            row["name"]
+            for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
+            if row["name"] in old_columns
+        ]
+        column_sql = ", ".join(new_columns)
+        conn.execute(
+            f"INSERT INTO {table} ({column_sql}) SELECT {column_sql} FROM {temp_table}"
+        )
+        conn.execute(f"DROP TABLE {temp_table}")
+
 
 def _is_relative_to(path: Path, root: Path) -> bool:
     try:
@@ -234,3 +263,46 @@ def _is_relative_to(path: Path, root: Path) -> bool:
     except ValueError:
         return False
 
+
+def _table_schema(table: str) -> str:
+    statements = {
+        "imports": """
+CREATE TABLE imports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_path TEXT NOT NULL,
+    source_size INTEGER,
+    source_mtime REAL,
+    source_device INTEGER,
+    source_inode INTEGER,
+    output_path TEXT NOT NULL,
+    media_type TEXT NOT NULL CHECK (media_type IN ('tv', 'anime', 'film')),
+    provider TEXT,
+    provider_show_id TEXT,
+    show_title TEXT NOT NULL,
+    show_year INTEGER,
+    season_number INTEGER NOT NULL,
+    episode_number INTEGER NOT NULL,
+    episode_title TEXT NOT NULL,
+    quality TEXT NOT NULL,
+    action TEXT NOT NULL CHECK (action IN ('hardlink', 'copy', 'test')),
+    conflict_policy TEXT NOT NULL CHECK (conflict_policy IN ('skip', 'replace', 'index', 'fail')),
+    result TEXT NOT NULL,
+    error TEXT,
+    imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+""",
+        "library_files": """
+CREATE TABLE library_files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    media_type TEXT NOT NULL CHECK (media_type IN ('tv', 'anime', 'film')),
+    output_path TEXT NOT NULL UNIQUE,
+    size INTEGER,
+    mtime REAL,
+    present INTEGER NOT NULL DEFAULT 1,
+    import_id INTEGER REFERENCES imports(id) ON DELETE SET NULL,
+    discovered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+""",
+    }
+    return statements[table]

@@ -14,8 +14,8 @@ from tvsorter.db import Database
 from tvsorter.filesystem import expand_video_files, is_relative_to, list_directory
 from tvsorter.importer import ImportRequest, ImportResult, execute_import, preview_import, result_to_record
 from tvsorter.library import rescan_outputs
-from tvsorter.naming import destination_path
-from tvsorter.parser import parse_media_filename
+from tvsorter.naming import destination_path, film_destination_path
+from tvsorter.parser import parse_film_filename, parse_media_filename
 from tvsorter.providers import MetadataProviders
 
 
@@ -24,6 +24,7 @@ CONFIG = load_config()
 DATABASE = Database(CONFIG.database_path)
 PROVIDERS = MetadataProviders(DATABASE)
 PICKER_ROOTS = [Path("/mnt"), Path("/media"), Path("/srv"), Path("/opt"), Path("/var/lib"), Path("/")]
+MEDIA_TYPES = {"tv", "anime", "film"}
 
 app = FastAPI(title="TvSorter")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -56,6 +57,7 @@ def settings_page(request: Request) -> HTMLResponse:
             "input_roots_text": "\n".join(row["path"] for row in roots),
             "tv_output_root": DATABASE.get_setting("tv_output_root", ""),
             "anime_output_root": DATABASE.get_setting("anime_output_root", ""),
+            "film_output_root": DATABASE.get_setting("film_output_root", ""),
             "checks": checks,
         },
     )
@@ -64,8 +66,9 @@ def settings_page(request: Request) -> HTMLResponse:
 @app.post("/settings")
 def save_settings(
     input_roots: Annotated[str, Form()],
-    tv_output_root: Annotated[str, Form()],
-    anime_output_root: Annotated[str, Form()],
+    tv_output_root: Annotated[str, Form()] = "",
+    anime_output_root: Annotated[str, Form()] = "",
+    film_output_root: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     roots = [_normalize_path(line) for line in input_roots.splitlines() if line.strip()]
     DATABASE.replace_input_roots(roots)
@@ -73,6 +76,7 @@ def save_settings(
     DATABASE.set_setting(
         "anime_output_root", _normalize_path(anime_output_root) if anime_output_root.strip() else ""
     )
+    DATABASE.set_setting("film_output_root", _normalize_path(film_output_root) if film_output_root.strip() else "")
     return RedirectResponse(url="/settings", status_code=303)
 
 
@@ -117,7 +121,7 @@ async def match_page(
     root = DATABASE.get_input_root(root_id)
     if not root:
         raise HTTPException(status_code=404, detail="Input root not found")
-    if media_type not in {"tv", "anime"}:
+    if media_type not in MEDIA_TYPES:
         raise HTTPException(status_code=400, detail="Invalid media type")
 
     files = expand_video_files(Path(root["path"]), selected or [])
@@ -125,8 +129,12 @@ async def match_page(
     provider_cache: dict[str, object] = {}
     episode_cache: dict[tuple[str, str], object] = {}
     for file_path in files:
-        parsed = parse_media_filename(file_path)
-        enriched = await _enrich_match(parsed, media_type, provider_cache, episode_cache)
+        parsed = parse_film_filename(file_path) if media_type == "film" else parse_media_filename(file_path)
+        enriched = (
+            _film_match(parsed)
+            if media_type == "film"
+            else await _enrich_match(parsed, media_type, provider_cache, episode_cache)
+        )
         rows.append({"source_path": file_path, "parsed": parsed, **enriched})
 
     return templates.TemplateResponse(
@@ -158,7 +166,7 @@ def run_imports(
     provider: Annotated[list[str], Form()],
     provider_show_id: Annotated[list[str], Form()],
 ) -> HTMLResponse:
-    if media_type not in {"tv", "anime"}:
+    if media_type not in MEDIA_TYPES:
         raise HTTPException(status_code=400, detail="Invalid media type")
     if action not in {"hardlink", "copy", "test"}:
         raise HTTPException(status_code=400, detail="Invalid action")
@@ -210,6 +218,8 @@ def preview_imports(
     provider: Annotated[list[str], Form()],
     provider_show_id: Annotated[list[str], Form()],
 ) -> HTMLResponse:
+    if media_type not in MEDIA_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid media type")
     output_root = _output_roots().get(media_type)
     if not output_root:
         raise HTTPException(status_code=400, detail=f"No {media_type} output root configured")
@@ -235,16 +245,25 @@ def preview_imports(
         try:
             result = preview_import(import_request)
         except (FileExistsError, ValueError) as exc:
-            output_path = destination_path(
-                output_root=output_root,
-                title=import_request.show_title,
-                year=import_request.show_year,
-                season=import_request.season_number,
-                episode=import_request.episode_number,
-                episode_title=import_request.episode_title,
-                quality=import_request.quality,
-                source_path=import_request.source_path,
-            )
+            if media_type == "film":
+                output_path = film_destination_path(
+                    output_root=output_root,
+                    title=import_request.show_title,
+                    year=import_request.show_year,
+                    quality=import_request.quality,
+                    source_path=import_request.source_path,
+                )
+            else:
+                output_path = destination_path(
+                    output_root=output_root,
+                    title=import_request.show_title,
+                    year=import_request.show_year,
+                    season=import_request.season_number,
+                    episode=import_request.episode_number,
+                    episode_title=import_request.episode_title,
+                    quality=import_request.quality,
+                    source_path=import_request.source_path,
+                )
             result = ImportResult(import_request, output_path, output_path, "failed", str(exc))
         results.append(result)
     return templates.TemplateResponse(request, "preview.html", {"results": results})
@@ -366,11 +385,26 @@ def _output_roots() -> dict[str, Path]:
     roots = {}
     tv_root = DATABASE.get_setting("tv_output_root", "")
     anime_root = DATABASE.get_setting("anime_output_root", "")
+    film_root = DATABASE.get_setting("film_output_root", "")
     if tv_root:
         roots["tv"] = Path(tv_root)
     if anime_root:
         roots["anime"] = Path(anime_root)
+    if film_root:
+        roots["film"] = Path(film_root)
     return roots
+
+
+def _film_match(parsed: object) -> dict:
+    return {
+        "show_title": getattr(parsed, "title"),
+        "show_year": getattr(parsed, "year"),
+        "episode_title": "Film",
+        "provider": "",
+        "provider_show_id": "",
+        "candidates": [],
+        "metadata_error": None,
+    }
 
 
 def _settings_checks(input_roots: list, output_roots: dict[str, Path]) -> list[dict[str, object]]:

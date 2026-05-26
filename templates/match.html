@@ -41,11 +41,17 @@
           <input class="provider-input" type="hidden" name="provider" value="{{ row.provider }}">
           <input class="provider-id-input" type="hidden" name="provider_show_id" value="{{ row.provider_show_id }}">
           <div class="grid">
-            <label>Show title <input class="show-title-input" name="show_title" value="{{ row.show_title }}"></label>
+            <label>{{ "Film title" if media_type == "film" else "Show title" }} <input class="show-title-input" name="show_title" value="{{ row.show_title }}"></label>
             <label>Year <input class="show-year-input" name="show_year" value="{{ row.show_year or '' }}"></label>
-            <label>Season <input name="season_number" type="number" min="0" value="{{ row.parsed.season }}"></label>
-            <label>Episode <input name="episode_number" type="number" min="0" value="{{ row.parsed.episode }}"></label>
-            <label>Episode title <input name="episode_title" value="{{ row.episode_title }}"></label>
+            {% if media_type == "film" %}
+              <input name="season_number" type="hidden" value="0">
+              <input name="episode_number" type="hidden" value="0">
+              <input name="episode_title" type="hidden" value="Film">
+            {% else %}
+              <label>Season <input name="season_number" type="number" min="0" value="{{ row.parsed.season }}"></label>
+              <label>Episode <input name="episode_number" type="number" min="0" value="{{ row.parsed.episode }}"></label>
+              <label>Episode title <input name="episode_title" value="{{ row.episode_title }}"></label>
+            {% endif %}
             <label>Quality <input name="quality" value="{{ row.parsed.quality }}"></label>
           </div>
           {% if row.candidates %}

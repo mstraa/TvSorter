@@ -6,7 +6,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from tvsorter.naming import destination_path
+from tvsorter.naming import destination_path, film_destination_path
 
 
 Action = str
@@ -117,6 +117,14 @@ def result_to_record(result: ImportResult) -> dict[str, object]:
 
 
 def _build_destination(request: ImportRequest) -> Path:
+    if request.media_type == "film":
+        return film_destination_path(
+            output_root=request.output_root,
+            title=request.show_title,
+            year=request.show_year,
+            quality=request.quality,
+            source_path=request.source_path,
+        )
     return destination_path(
         output_root=request.output_root,
         title=request.show_title,
@@ -149,4 +157,3 @@ def _indexed_path(path: Path) -> Path:
         if not candidate.exists():
             return candidate
     raise FileExistsError(f"No available indexed destination for: {path}")
-

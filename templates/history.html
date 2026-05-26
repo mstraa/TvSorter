@@ -10,7 +10,13 @@
         <td>{{ item.imported_at }}</td>
         <td>{{ item.media_type }}</td>
         <td>{{ item.show_title }}{% if item.show_year %} ({{ item.show_year }}){% endif %}</td>
-        <td>S{{ "%02d"|format(item.season_number) }}E{{ "%02d"|format(item.episode_number) }} - {{ item.episode_title }}</td>
+        <td>
+          {% if item.media_type == "film" %}
+            Film
+          {% else %}
+            S{{ "%02d"|format(item.season_number) }}E{{ "%02d"|format(item.episode_number) }} - {{ item.episode_title }}
+          {% endif %}
+        </td>
         <td>{{ item.action }}</td>
         <td>{{ item.result }}{% if item.error %}: {{ item.error }}{% endif %}</td>
       </tr>
@@ -19,4 +25,3 @@
   </table>
 </section>
 {% endblock %}
-

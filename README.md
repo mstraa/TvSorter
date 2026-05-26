@@ -1,6 +1,6 @@
 # TvSorter
 
-TvSorter is a LAN-only web app for curating mounted TV/anime files into clean output libraries by hardlinking or copying selected episodes.
+TvSorter is a LAN-only web app for curating mounted TV/anime/film files into clean output libraries by hardlinking or copying selected media.
 
 ## Development
 
@@ -38,7 +38,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/mstraa/TvSorter/main/scr
   --ctid 120 \
   --mount /tank/downloads:/mnt/downloads \
   --mount /tank/media/TV:/mnt/media/TV \
-  --mount /tank/media/Anime:/mnt/media/Anime
+  --mount /tank/media/Anime:/mnt/media/Anime \
+  --mount /tank/media/Films:/mnt/media/Films
 ```
 
 The script prompts for root disk and template storage when run interactively. Use `--help` to see static IP, SSH key, storage, and sizing options.

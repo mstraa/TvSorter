@@ -57,3 +57,15 @@ def destination_path(
     )
     return output_root / show / season_dir / filename
 
+
+def film_destination_path(
+    output_root: Path,
+    title: str,
+    year: int | None,
+    quality: str,
+    source_path: Path,
+) -> Path:
+    show = show_folder_name(title, year)
+    safe_quality = sanitize_component(quality)
+    filename = f"{show} - {safe_quality}{source_path.suffix}"
+    return output_root / show / filename

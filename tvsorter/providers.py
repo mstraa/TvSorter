@@ -36,6 +36,8 @@ class MetadataProviders:
             return await self.search_tvmaze(query)
         if media_type == "anime":
             return await self.search_jikan(query)
+        if media_type == "film":
+            return []
         raise ValueError(f"Unsupported media type: {media_type}")
 
     async def episodes(self, media_type: str, provider_show_id: str) -> list[EpisodeCandidate]:
@@ -43,6 +45,8 @@ class MetadataProviders:
             return await self.tvmaze_episodes(provider_show_id)
         if media_type == "anime":
             return await self.jikan_episodes(provider_show_id)
+        if media_type == "film":
+            return []
         raise ValueError(f"Unsupported media type: {media_type}")
 
     async def search_tvmaze(self, query: str) -> list[ShowCandidate]:
@@ -150,4 +154,3 @@ def _strip_html(value: str) -> str:
     import re
 
     return re.sub(r"<[^>]+>", "", value).strip()
-

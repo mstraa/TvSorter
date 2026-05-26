@@ -7,7 +7,7 @@ from tvsorter.filesystem import VIDEO_EXTENSIONS
 
 
 def rescan_outputs(database: Database, roots: dict[str, Path]) -> dict[str, int]:
-    counts = {"tv": 0, "anime": 0}
+    counts = {media_type: 0 for media_type in roots}
     for media_type, root in roots.items():
         if not root or not root.exists():
             continue
@@ -17,4 +17,3 @@ def rescan_outputs(database: Database, roots: dict[str, Path]) -> dict[str, int]
                 counts[media_type] += 1
     database.mark_missing_outside(roots)
     return counts
-

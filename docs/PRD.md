@@ -2,16 +2,16 @@
 
 ## Overview
 
-TvSorter is a LAN-only web application intended to run inside a privileged LXC container. It helps curate TV shows and anime from mounted input folders into clean, Plex/Jellyfin-friendly output libraries without modifying the original files.
+TvSorter is a LAN-only web application intended to run inside a privileged LXC container. It helps curate TV shows, anime, and films from mounted input folders into clean, Plex/Jellyfin-friendly output libraries without modifying the original files.
 
 The app lets a user browse mounted input folders, select files or folders, identify the show and episode from public metadata sources, manually correct matches when needed, then hardlink or copy the selected media into a curated output folder using a consistent naming structure.
 
 ## Goals
 
-- Provide a web UI for manually controlled TV/anime imports.
+- Provide a web UI for manually controlled TV/anime/film imports.
 - Keep source files untouched.
 - Allow per-import choice between hardlink and copy.
-- Support separate manually configured output roots for TV and Anime.
+- Support separate manually configured output roots for TV, Anime, and Film.
 - Persist imported library state across app restarts.
 - Allow users to see already imported files from the output folders.
 - Use non-login public metadata APIs.
@@ -24,7 +24,7 @@ The app lets a user browse mounted input folders, select files or folders, ident
 - No automatic deletion, moving, or renaming of source files.
 - No user login or authentication in the MVP.
 - No subtitle import in the MVP.
-- No movie support in the MVP.
+- Film support starts with filename parsing and manual correction. Public no-login film metadata is not required for the MVP.
 - No automatic daemon-style watch/import workflow in the MVP.
 - No dependency on paid or logged-in metadata APIs in the MVP.
 
@@ -62,6 +62,13 @@ Use Jikan public API by default.
 - Based on public MyAnimeList data.
 - Use normal season/episode naming in TvSorter even for anime.
 
+### Film
+
+Use filename parsing and manual correction by default.
+
+- No logged/API-key provider is required for the MVP.
+- Optional API-key providers may be added later for richer film metadata.
+
 ### Future Optional Providers
 
 These may be added later if API keys are acceptable:
@@ -77,6 +84,7 @@ The Settings UI must allow configuring:
 - One or more input roots.
 - One TV output root.
 - One Anime output root.
+- One Film output root.
 
 Example:
 
@@ -90,6 +98,9 @@ TV output root:
 
 Anime output root:
 - /mnt/media/Anime
+
+Film output root:
+- /mnt/media/Films
 ```
 
 ## Import Workflow
@@ -100,24 +111,24 @@ Anime output root:
 4. User selects one or more files or folders.
 5. If folders are selected, the app recursively expands them into video files.
 6. App ignores subtitle files and non-video files.
-7. User chooses media type: TV or Anime.
+7. User chooses media type: TV, Anime, or Film.
 8. App parses each video filename for:
    - show title
    - year when present
    - season number
    - episode number
    - quality
-9. App searches the matching metadata provider:
+9. App searches the matching metadata provider when available:
    - TVMaze for TV
    - Jikan for Anime
+   - Film uses filename parsing/manual correction in the MVP
 10. App shows proposed matches.
 11. User may manually override:
    - provider result
    - show title
    - show year
-   - season number
-   - episode number
-   - episode title
+   - season number, episode number, and episode title for TV/Anime
+   - title and year for Film
    - quality
 12. App previews final destination paths.
 13. User chooses hardlink or copy per import.
@@ -144,6 +155,18 @@ Anime example:
 
 ```text
 /mnt/media/Anime/Cowboy Bebop (1998)/Season 01/Cowboy Bebop (1998) - S01E01 - Asteroid Blues - 1080p.mkv
+```
+
+Film uses a movie-style structure under the Film output root.
+
+```text
+Film Name (Year)/Film Name (Year) - Quality.ext
+```
+
+Film example:
+
+```text
+/mnt/media/Films/Blade Runner 2049 (2017)/Blade Runner 2049 (2017) - 2160p.mkv
 ```
 
 ## Quality Detection
@@ -186,7 +209,7 @@ Each import should record:
 - source mtime
 - source device and inode when available
 - output path
-- media type: TV or Anime
+- media type: TV, Anime, or Film
 - metadata provider
 - provider show ID
 - show title
@@ -209,6 +232,7 @@ The app should also offer an output rescan action so files added, removed, or ch
 - Configure input roots.
 - Configure TV output root.
 - Configure Anime output root.
+- Configure Film output root.
 - Show basic permission/read-write checks.
 
 ### Input Browser
@@ -237,7 +261,7 @@ The app should also offer an output rescan action so files added, removed, or ch
 ### Library
 
 - Show already imported files.
-- Group by TV/Anime, show, season, and episode.
+- Group by TV/Anime/Film, show or film title, season, and episode where applicable.
 - Indicate whether files are present on disk.
 - Provide output rescan action.
 
@@ -265,7 +289,7 @@ The exact schema may evolve during implementation, but the stored data must supp
 ## Safety Requirements
 
 - All file browsing must be constrained to configured input roots.
-- Output writes must be constrained to configured TV/Anime output roots.
+- Output writes must be constrained to configured TV/Anime/Film output roots.
 - Path traversal must be prevented.
 - The app must never mutate source files.
 - Existing output files must never be overwritten without an explicit user conflict choice.
@@ -277,4 +301,3 @@ The product should borrow concepts from:
 
 - FileBot: action selection, conflict modes, manual query override, preview/test behavior.
 - mnamer: Python-oriented parsing, provider abstraction, configurable formats, no-overwrite behavior, cache/test workflow.
-

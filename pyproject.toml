@@ -1,7 +1,7 @@
 [project]
 name = "tvsorter"
 version = "0.1.0"
-description = "LAN-only TV and anime hardlink/copy sorter"
+description = "LAN-only TV, anime, and film hardlink/copy sorter"
 readme = "docs/PRD.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -26,4 +26,3 @@ build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-

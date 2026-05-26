@@ -11,7 +11,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/mstraa/TvSorter/main/scr
   --ctid 120 \
   --mount /tank/downloads:/mnt/downloads \
   --mount /tank/media/TV:/mnt/media/TV \
-  --mount /tank/media/Anime:/mnt/media/Anime
+  --mount /tank/media/Anime:/mnt/media/Anime \
+  --mount /tank/media/Films:/mnt/media/Films
 ```
 
 The script:
@@ -75,9 +76,10 @@ Example paths:
 /mnt/downloads
 /mnt/media/TV
 /mnt/media/Anime
+/mnt/media/Films
 ```
 
-The service user needs read access to input roots and write access to TV/Anime output roots.
+The service user needs read access to input roots and write access to TV/Anime/Film output roots.
 
 Hardlinks require source and output to be on the same filesystem. If they are mounted from different devices or datasets, use copy.
 

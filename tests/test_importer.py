@@ -56,3 +56,26 @@ def test_index_conflict_keeps_both(tmp_path: Path) -> None:
     assert first.final_path.exists()
     assert result.final_path.name.endswith("(2).mkv")
 
+
+def test_film_import_uses_film_naming(tmp_path: Path) -> None:
+    source = tmp_path / "source.mkv"
+    source.write_text("film")
+    output_root = tmp_path / "films"
+    request = ImportRequest(
+        source_path=source,
+        output_root=output_root,
+        media_type="film",
+        show_title="Blade Runner 2049",
+        show_year=2017,
+        season_number=0,
+        episode_number=0,
+        episode_title="Film",
+        quality="2160p",
+        action="copy",
+        conflict_policy="skip",
+    )
+
+    result = execute_import(request)
+
+    assert result.result == "imported"
+    assert result.final_path == output_root / "Blade Runner 2049 (2017)" / "Blade Runner 2049 (2017) - 2160p.mkv"
