@@ -12,7 +12,20 @@
       <form method="post" action="/match" class="stack">
         <input type="hidden" name="root_id" value="{{ active_root.id }}">
         <div class="sticky-controls">
-          <div class="toolbar">
+          <div class="toolbar status-toolbar">
+            <label>
+              Set selected status
+              <select data-selected-status>
+                <option value="auto">Auto</option>
+                <option value="none">No status</option>
+                {% for status in ["imported", "failed", "skipped", "preview", "conflict"] %}
+                  <option value="{{ status }}">{{ status }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <button class="secondary-button" type="button" data-apply-selected-status>Apply Status</button>
+          </div>
+          <div class="toolbar browse-toolbar">
             <label>
               Input root
               <select name="browse_root_id" onchange="window.location.href = '/browse?root_id=' + this.value + '&path='">
@@ -30,42 +43,25 @@
               </select>
             </label>
             <button type="submit">Match Selected</button>
-            <label>
-              Set selected status
-              <select data-selected-status>
-                <option value="auto">Auto</option>
-                <option value="none">No status</option>
-                {% for status in ["imported", "failed", "skipped", "preview", "conflict"] %}
-                  <option value="{{ status }}">{{ status }}</option>
-                {% endfor %}
+            <label class="browse-filter">
+              Show
+              <select data-browse-status-select>
+                <option value="none" selected>Only no status</option>
+                <option value="all">All statuses</option>
+                <option value="imported">Imported</option>
+                <option value="failed">Failed</option>
+                <option value="skipped">Skipped</option>
+                <option value="preview">Preview</option>
+                <option value="conflict">Conflict</option>
+                <option value="mixed">Mixed</option>
               </select>
             </label>
-            <button class="secondary-button" type="button" data-apply-selected-status>Apply Status</button>
           </div>
           <div class="pathbar">
             <span class="muted">Current path: /{{ current_path }}</span>
             {% if current_path %}
               <a href="/browse?root_id={{ active_root.id }}&path={{ parent_path }}">Up one folder</a>
             {% endif %}
-          </div>
-          <div class="browse-filter" data-browse-status-filter>
-            <span class="muted">Show</span>
-            <label class="state-toggle">
-              <input type="checkbox" value="none" checked>
-              No status
-            </label>
-            {% for status in ["imported", "failed", "skipped", "preview", "conflict"] %}
-              <label class="state-toggle state-{{ status }}">
-                <input type="checkbox" value="{{ status }}" checked>
-                {{ status }}
-              </label>
-            {% endfor %}
-            <label class="state-toggle state-mixed">
-              <input type="checkbox" value="mixed" checked>
-              mixed
-            </label>
-            <button class="secondary-button compact-button" type="button" data-browse-filter-only="none">Only no status</button>
-            <button class="secondary-button compact-button" type="button" data-browse-filter-all>Show all</button>
           </div>
         </div>
         <table>

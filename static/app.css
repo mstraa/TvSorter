@@ -158,6 +158,14 @@ h2 {
   margin-bottom: 0;
 }
 
+.status-toolbar {
+  padding-bottom: 4px;
+}
+
+.browse-toolbar {
+  align-items: end;
+}
+
 .pathbar {
   display: flex;
   align-items: center;
@@ -166,10 +174,7 @@ h2 {
 }
 
 .browse-filter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  min-width: 160px;
 }
 
 .grid {

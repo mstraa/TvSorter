@@ -188,3 +188,4 @@ Film Name (Year) - Quality.ext
 - Refined the progress panel layout so the percentage stays inside the panel and long filenames/details wrap without duplicating the header.
 - Changed manual browse status updates to apply to any selected source file, including non-video files, and improved the frontend alert to show backend error details.
 - Added human-readable file size formatting with French-style units and comma decimals in Browse, Library, and import progress details.
+- Moved selected-item status controls above the Browse root/type controls and replaced status filter chips with a dropdown that defaults to only no-status rows.

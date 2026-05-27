@@ -1,4 +1,5 @@
 initializeTheme();
+initializeBrowseStatusFilters();
 
 let progressTimer = null;
 let progressVisible = false;
@@ -25,9 +26,9 @@ document.addEventListener("change", (event) => {
     return;
   }
 
-  const browseStatusFilter = event.target.closest("[data-browse-status-filter] input");
-  if (browseStatusFilter) {
-    updateBrowseStatusRows(browseStatusFilter.closest("[data-browse-status-filter]"));
+  const browseStatusSelect = event.target.closest("[data-browse-status-select]");
+  if (browseStatusSelect) {
+    updateBrowseStatusRows(browseStatusSelect);
     return;
   }
 
@@ -84,20 +85,6 @@ document.addEventListener("click", async (event) => {
   const applyStatusButton = event.target.closest("[data-apply-selected-status]");
   if (applyStatusButton) {
     await applySelectedSourceStatus(applyStatusButton);
-    return;
-  }
-
-  const onlyStatusButton = event.target.closest("[data-browse-filter-only]");
-  if (onlyStatusButton) {
-    const filter = onlyStatusButton.closest("[data-browse-status-filter]");
-    setBrowseStatusFilter(filter, onlyStatusButton.dataset.browseFilterOnly);
-    return;
-  }
-
-  const allStatusButton = event.target.closest("[data-browse-filter-all]");
-  if (allStatusButton) {
-    const filter = allStatusButton.closest("[data-browse-status-filter]");
-    setBrowseStatusFilter(filter, null);
     return;
   }
 
@@ -254,20 +241,15 @@ function updateStateRows(filter) {
   });
 }
 
-function updateBrowseStatusRows(filter) {
-  const enabledStates = new Set(
-    Array.from(filter.querySelectorAll("input:checked")).map((input) => input.value),
-  );
-  document.querySelectorAll(".browse-row").forEach((row) => {
-    row.hidden = !enabledStates.has(row.dataset.browseStatus);
-  });
+function initializeBrowseStatusFilters() {
+  document.querySelectorAll("[data-browse-status-select]").forEach((select) => updateBrowseStatusRows(select));
 }
 
-function setBrowseStatusFilter(filter, onlyStatus) {
-  filter.querySelectorAll("input").forEach((input) => {
-    input.checked = onlyStatus ? input.value === onlyStatus : true;
+function updateBrowseStatusRows(select) {
+  const selectedState = select.value;
+  document.querySelectorAll(".browse-row").forEach((row) => {
+    row.hidden = selectedState !== "all" && row.dataset.browseStatus !== selectedState;
   });
-  updateBrowseStatusRows(filter);
 }
 
 async function applySelectedSourceStatus(button) {

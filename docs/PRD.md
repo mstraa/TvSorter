@@ -256,7 +256,7 @@ The app should also offer an output rescan action so files added, removed, or ch
 - Expand selected folders recursively into video files.
 - Keep root/type/action controls visible while scrolling long folders.
 - Show the latest import status for video source files already processed by TvSorter.
-- Filter visible rows by source status, including an "only no status" view.
+- Filter visible rows with a source-status dropdown that defaults to "only no status".
 - Allow selected files and folders, including non-video files, to receive manual source status overrides from the sticky browser controls without modifying import history or source files.
 - Make browser rows clickable for fast selection.
 - Provide a persistent dark theme toggle.
