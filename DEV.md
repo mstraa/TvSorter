@@ -178,3 +178,4 @@ Film Name (Year)/Film Name (Year) - Quality.ext
 - Added `tvsorter-access` helper for shared LXC media mounts so TvSorter can match an existing writable UID/GID or group without changing media folder permissions.
 - Added latest import status badges to the input browser for video source files already processed by TvSorter.
 - Added Browse status filters, an "Only no status" view, and manual per-source status overrides stored separately from import history.
+- Moved status changes to a selected-items browser action, applied status changes recursively to selected folders, made browser rows clickable, and added a persistent dark theme toggle.

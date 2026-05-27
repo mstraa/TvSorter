@@ -116,12 +116,14 @@ def test_source_status_overrides_can_be_set_and_cleared(tmp_path: Path) -> None:
     database = Database(tmp_path / "tvsorter.db")
     database.init()
     source = tmp_path / "source.mkv"
+    second_source = tmp_path / "second.mkv"
 
-    database.set_source_status_override(source, "none")
-    rows = database.source_status_overrides([source])
+    database.set_source_status_overrides([source, second_source], "none")
+    rows = database.source_status_overrides([source, second_source])
 
     assert rows[str(source.resolve())]["status"] == "none"
+    assert rows[str(second_source.resolve())]["status"] == "none"
 
-    database.set_source_status_override(source, None)
+    database.set_source_status_overrides([source, second_source], None)
 
-    assert database.source_status_overrides([source]) == {}
+    assert database.source_status_overrides([source, second_source]) == {}

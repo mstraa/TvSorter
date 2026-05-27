@@ -220,12 +220,20 @@ class Database:
         return {row["source_path"]: row for row in rows}
 
     def set_source_status_override(self, source_path: Path, status: str | None) -> None:
-        normalized_path = str(source_path.resolve())
+        self.set_source_status_overrides([source_path], status)
+
+    def set_source_status_overrides(self, source_paths: list[Path], status: str | None) -> None:
+        normalized_paths = [str(path.resolve()) for path in source_paths]
+        if not normalized_paths:
+            return
         with self.connect() as conn:
             if status is None:
-                conn.execute("DELETE FROM source_status_overrides WHERE source_path = ?", (normalized_path,))
+                conn.executemany(
+                    "DELETE FROM source_status_overrides WHERE source_path = ?",
+                    [(path,) for path in normalized_paths],
+                )
                 return
-            conn.execute(
+            conn.executemany(
                 """
                 INSERT INTO source_status_overrides (source_path, status)
                 VALUES (?, ?)
@@ -233,7 +241,7 @@ class Database:
                     status = excluded.status,
                     updated_at = CURRENT_TIMESTAMP
                 """,
-                (normalized_path, status),
+                [(path, status) for path in normalized_paths],
             )
 
     def list_library_files(self) -> list[sqlite3.Row]:

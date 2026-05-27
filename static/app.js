@@ -1,13 +1,15 @@
+initializeTheme();
+
 document.addEventListener("change", (event) => {
-  const browseStatusFilter = event.target.closest("[data-browse-status-filter] input");
-  if (browseStatusFilter) {
-    updateBrowseStatusRows(browseStatusFilter.closest("[data-browse-status-filter]"));
+  const browseCheckbox = event.target.closest('.browse-row input[name="selected"]');
+  if (browseCheckbox) {
+    browseCheckbox.closest(".browse-row").classList.toggle("selected-row", browseCheckbox.checked);
     return;
   }
 
-  const manualStatusSelect = event.target.closest(".manual-status-select");
-  if (manualStatusSelect) {
-    updateManualSourceStatus(manualStatusSelect);
+  const browseStatusFilter = event.target.closest("[data-browse-status-filter] input");
+  if (browseStatusFilter) {
+    updateBrowseStatusRows(browseStatusFilter.closest("[data-browse-status-filter]"));
     return;
   }
 
@@ -40,6 +42,12 @@ let folderPickerMode = "replace";
 let folderPickerParent = null;
 
 document.addEventListener("click", async (event) => {
+  const themeButton = event.target.closest("[data-theme-toggle]");
+  if (themeButton) {
+    toggleTheme();
+    return;
+  }
+
   const openButton = event.target.closest("[data-folder-picker]");
   if (openButton) {
     folderPickerTarget = document.getElementById(openButton.dataset.target);
@@ -52,6 +60,12 @@ document.addEventListener("click", async (event) => {
 
   if (event.target.closest("[data-folder-close]")) {
     folderDialog.close();
+    return;
+  }
+
+  const applyStatusButton = event.target.closest("[data-apply-selected-status]");
+  if (applyStatusButton) {
+    await applySelectedSourceStatus(applyStatusButton);
     return;
   }
 
@@ -90,6 +104,16 @@ document.addEventListener("click", async (event) => {
   const folderEntry = event.target.closest("[data-folder-path]");
   if (folderEntry) {
     await loadFolder(folderEntry.dataset.folderPath);
+    return;
+  }
+
+  const browseRow = event.target.closest(".browse-row");
+  if (browseRow && !event.target.closest("a, button, input, select, textarea, label")) {
+    const checkbox = browseRow.querySelector('input[name="selected"]');
+    if (checkbox) {
+      checkbox.checked = !checkbox.checked;
+      browseRow.classList.toggle("selected-row", checkbox.checked);
+    }
   }
 });
 
@@ -212,8 +236,7 @@ function updateBrowseStatusRows(filter) {
     Array.from(filter.querySelectorAll("input:checked")).map((input) => input.value),
   );
   document.querySelectorAll(".browse-row").forEach((row) => {
-    const isFolder = row.dataset.browseFolder === "1";
-    row.hidden = !isFolder && !enabledStates.has(row.dataset.browseStatus);
+    row.hidden = !enabledStates.has(row.dataset.browseStatus);
   });
 }
 
@@ -224,19 +247,48 @@ function setBrowseStatusFilter(filter, onlyStatus) {
   updateBrowseStatusRows(filter);
 }
 
-async function updateManualSourceStatus(select) {
+async function applySelectedSourceStatus(button) {
+  const form = button.closest("form");
+  const selected = Array.from(form.querySelectorAll('input[name="selected"]:checked')).map((input) => input.value);
+  if (!selected.length) {
+    alert("Select one or more files or folders first.");
+    return;
+  }
   const formData = new FormData();
-  formData.set("source_path", select.dataset.sourcePath);
-  formData.set("status", select.value);
-  select.disabled = true;
+  formData.set("root_id", form.querySelector('input[name="root_id"]').value);
+  formData.set("status", form.querySelector("[data-selected-status]").value);
+  for (const relativePath of selected) {
+    formData.append("selected", relativePath);
+  }
+  button.disabled = true;
   const response = await fetch("/api/source-status", {
     method: "POST",
     body: formData,
   });
-  select.disabled = false;
+  button.disabled = false;
   if (!response.ok) {
     alert("Could not update status.");
     return;
   }
   window.location.reload();
+}
+
+function initializeTheme() {
+  const savedTheme = localStorage.getItem("tvsorter-theme");
+  const preferredTheme = window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  setTheme(savedTheme || preferredTheme);
+}
+
+function toggleTheme() {
+  setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+}
+
+function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem("tvsorter-theme", theme);
+  const button = document.querySelector("[data-theme-toggle]");
+  if (button) {
+    button.textContent = theme === "dark" ? "Light" : "Dark";
+    button.setAttribute("aria-label", `Switch to ${theme === "dark" ? "light" : "dark"} theme`);
+  }
 }

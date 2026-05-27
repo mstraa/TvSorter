@@ -30,6 +30,17 @@
               </select>
             </label>
             <button type="submit">Match Selected</button>
+            <label>
+              Set selected status
+              <select data-selected-status>
+                <option value="auto">Auto</option>
+                <option value="none">No status</option>
+                {% for status in ["imported", "failed", "skipped", "preview", "conflict"] %}
+                  <option value="{{ status }}">{{ status }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <button class="secondary-button" type="button" data-apply-selected-status>Apply Status</button>
           </div>
           <div class="pathbar">
             <span class="muted">Current path: /{{ current_path }}</span>
@@ -49,12 +60,16 @@
                 {{ status }}
               </label>
             {% endfor %}
+            <label class="state-toggle state-mixed">
+              <input type="checkbox" value="mixed" checked>
+              mixed
+            </label>
             <button class="secondary-button compact-button" type="button" data-browse-filter-only="none">Only no status</button>
             <button class="secondary-button compact-button" type="button" data-browse-filter-all>Show all</button>
           </div>
         </div>
         <table>
-          <thead><tr><th></th><th>Name</th><th>Status</th><th>Set status</th><th>Type</th><th>Size</th></tr></thead>
+          <thead><tr><th></th><th>Name</th><th>Status</th><th>Type</th><th>Size</th></tr></thead>
           <tbody>
           {% for row in entries %}
             {% set entry = row.entry %}
@@ -74,17 +89,6 @@
               <td>
                 {% if row.status %}
                   <span class="state-badge state-{{ row.status }}">{{ row.status }}</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if entry.is_video %}
-                  <select class="manual-status-select" data-source-path="{{ entry.absolute_path }}">
-                    <option value="auto" {% if row.manual_status == "auto" %}selected{% endif %}>Auto</option>
-                    <option value="none" {% if row.manual_status == "none" %}selected{% endif %}>No status</option>
-                    {% for status in ["imported", "failed", "skipped", "preview", "conflict"] %}
-                      <option value="{{ status }}" {% if row.manual_status == status %}selected{% endif %}>{{ status }}</option>
-                    {% endfor %}
-                  </select>
                 {% endif %}
               </td>
               <td>{{ "folder" if entry.is_dir else ("video" if entry.is_video else "file") }}</td>
