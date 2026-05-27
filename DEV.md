@@ -183,3 +183,4 @@ Film Name (Year) - Quality.ext
 - Changed Film imports to copy/hardlink directly into the Film output root instead of creating one folder per movie.
 - Added background import jobs with real copy progress, current item display, and determinate import percentage polling.
 - Hardened long filename/path wrapping in match, preview, and import result views so paths cannot push panels off-screen.
+- Fixed Import Results and Preview table column sizing so long source paths cannot squeeze destination/state columns; empty Error columns are hidden when no rows have errors.

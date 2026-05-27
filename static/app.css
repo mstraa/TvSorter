@@ -439,11 +439,48 @@ th {
   color: var(--error);
 }
 
+.result-table {
+  table-layout: fixed;
+}
+
+.result-table .source-column {
+  width: 52%;
+}
+
+.result-table .destination-column {
+  width: 38%;
+}
+
+.result-table .state-column {
+  width: 110px;
+}
+
+.result-table.has-errors .source-column {
+  width: 40%;
+}
+
+.result-table.has-errors .destination-column {
+  width: 30%;
+}
+
+.result-table.has-errors .error-column {
+  width: 22%;
+}
+
+.result-table th,
+.result-table td {
+  min-width: 0;
+}
+
+.result-table .state-badge {
+  max-width: 100%;
+}
+
 .path-line,
 .path-cell,
 .match-row .muted {
   overflow-wrap: anywhere;
-  word-break: break-word;
+  word-break: break-all;
 }
 
 .folder-dialog {

@@ -3,6 +3,7 @@
 <section class="panel">
   <h1>Import Results</h1>
   {% set states = results | map(attribute='result') | unique | list %}
+  {% set has_errors = results | selectattr("error") | list | length > 0 %}
   <div class="state-filter" data-state-filter>
     {% for state in states %}
       <label class="state-toggle state-{{ state }}">
@@ -11,15 +12,28 @@
       </label>
     {% endfor %}
   </div>
-  <table class="result-table">
-    <thead><tr><th>Source</th><th>Destination</th><th>State</th><th>Error</th></tr></thead>
+  <table class="result-table{% if has_errors %} has-errors{% endif %}">
+    <colgroup>
+      <col class="source-column">
+      <col class="destination-column">
+      <col class="state-column">
+      {% if has_errors %}<col class="error-column">{% endif %}
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Source</th>
+        <th>Destination</th>
+        <th>State</th>
+        {% if has_errors %}<th>Error</th>{% endif %}
+      </tr>
+    </thead>
     <tbody>
     {% for result in results %}
       <tr class="state-row state-{{ result.result }}" data-state="{{ result.result }}">
         <td class="path-cell">{{ result.request.source_path }}</td>
         <td class="path-cell">{{ result.final_path }}</td>
         <td><span class="state-badge state-{{ result.result }}">{{ result.result }}</span></td>
-        <td class="error-cell">{{ result.error or "" }}</td>
+        {% if has_errors %}<td class="error-cell">{{ result.error or "" }}</td>{% endif %}
       </tr>
     {% endfor %}
     </tbody>
