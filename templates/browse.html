@@ -37,13 +37,32 @@
               <a href="/browse?root_id={{ active_root.id }}&path={{ parent_path }}">Up one folder</a>
             {% endif %}
           </div>
+          <div class="browse-filter" data-browse-status-filter>
+            <span class="muted">Show</span>
+            <label class="state-toggle">
+              <input type="checkbox" value="none" checked>
+              No status
+            </label>
+            {% for status in ["imported", "failed", "skipped", "preview", "conflict"] %}
+              <label class="state-toggle state-{{ status }}">
+                <input type="checkbox" value="{{ status }}" checked>
+                {{ status }}
+              </label>
+            {% endfor %}
+            <button class="secondary-button compact-button" type="button" data-browse-filter-only="none">Only no status</button>
+            <button class="secondary-button compact-button" type="button" data-browse-filter-all>Show all</button>
+          </div>
         </div>
         <table>
-          <thead><tr><th></th><th>Name</th><th>Status</th><th>Type</th><th>Size</th></tr></thead>
+          <thead><tr><th></th><th>Name</th><th>Status</th><th>Set status</th><th>Type</th><th>Size</th></tr></thead>
           <tbody>
           {% for row in entries %}
             {% set entry = row.entry %}
-            <tr class="{% if row.status %}state-row state-{{ row.status }}{% endif %}">
+            <tr
+              class="browse-row {% if row.status %}state-row state-{{ row.status }}{% endif %}"
+              data-browse-status="{{ row.status_key }}"
+              data-browse-folder="{{ 1 if entry.is_dir else 0 }}"
+            >
               <td><input type="checkbox" name="selected" value="{{ entry.relative_path }}"></td>
               <td>
                 {% if entry.is_dir %}
@@ -55,6 +74,17 @@
               <td>
                 {% if row.status %}
                   <span class="state-badge state-{{ row.status }}">{{ row.status }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if entry.is_video %}
+                  <select class="manual-status-select" data-source-path="{{ entry.absolute_path }}">
+                    <option value="auto" {% if row.manual_status == "auto" %}selected{% endif %}>Auto</option>
+                    <option value="none" {% if row.manual_status == "none" %}selected{% endif %}>No status</option>
+                    {% for status in ["imported", "failed", "skipped", "preview", "conflict"] %}
+                      <option value="{{ status }}" {% if row.manual_status == status %}selected{% endif %}>{{ status }}</option>
+                    {% endfor %}
+                  </select>
                 {% endif %}
               </td>
               <td>{{ "folder" if entry.is_dir else ("video" if entry.is_video else "file") }}</td>

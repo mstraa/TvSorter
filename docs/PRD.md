@@ -255,6 +255,8 @@ The app should also offer an output rescan action so files added, removed, or ch
 - Expand selected folders recursively into video files.
 - Keep root/type/action controls visible while scrolling long folders.
 - Show the latest import status for video source files already processed by TvSorter.
+- Filter visible rows by source status, including an "only no status" view.
+- Allow manual source status overrides without modifying import history or source files.
 
 ### Match Queue
 
@@ -304,6 +306,7 @@ Initial tables:
 - `imports`
 - `library_files`
 - `provider_cache`
+- `source_status_overrides`
 
 The exact schema may evolve during implementation, but the stored data must support restart-safe import history and output folder rescan.
 

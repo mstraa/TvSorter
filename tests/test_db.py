@@ -110,3 +110,18 @@ def test_latest_imports_for_sources_returns_newest_status(tmp_path: Path) -> Non
     rows = database.latest_imports_for_sources([source])
 
     assert rows[str(source)]["result"] == "imported"
+
+
+def test_source_status_overrides_can_be_set_and_cleared(tmp_path: Path) -> None:
+    database = Database(tmp_path / "tvsorter.db")
+    database.init()
+    source = tmp_path / "source.mkv"
+
+    database.set_source_status_override(source, "none")
+    rows = database.source_status_overrides([source])
+
+    assert rows[str(source.resolve())]["status"] == "none"
+
+    database.set_source_status_override(source, None)
+
+    assert database.source_status_overrides([source]) == {}

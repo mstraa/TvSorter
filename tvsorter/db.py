@@ -63,6 +63,12 @@ CREATE TABLE IF NOT EXISTS provider_cache (
     value TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS source_status_overrides (
+    source_path TEXT PRIMARY KEY,
+    status TEXT NOT NULL CHECK (status IN ('none', 'imported', 'failed', 'skipped', 'preview', 'conflict')),
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
@@ -196,6 +202,39 @@ class Database:
                 normalized_paths,
             ).fetchall()
         return {row["source_path"]: row for row in rows}
+
+    def source_status_overrides(self, source_paths: list[Path]) -> dict[str, sqlite3.Row]:
+        if not source_paths:
+            return {}
+        normalized_paths = [str(path.resolve()) for path in source_paths]
+        placeholders = ", ".join(["?"] * len(normalized_paths))
+        with self.connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT *
+                FROM source_status_overrides
+                WHERE source_path IN ({placeholders})
+                """,
+                normalized_paths,
+            ).fetchall()
+        return {row["source_path"]: row for row in rows}
+
+    def set_source_status_override(self, source_path: Path, status: str | None) -> None:
+        normalized_path = str(source_path.resolve())
+        with self.connect() as conn:
+            if status is None:
+                conn.execute("DELETE FROM source_status_overrides WHERE source_path = ?", (normalized_path,))
+                return
+            conn.execute(
+                """
+                INSERT INTO source_status_overrides (source_path, status)
+                VALUES (?, ?)
+                ON CONFLICT(source_path) DO UPDATE SET
+                    status = excluded.status,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (normalized_path, status),
+            )
 
     def list_library_files(self) -> list[sqlite3.Row]:
         with self.connect() as conn:

@@ -26,6 +26,7 @@ DATABASE = Database(CONFIG.database_path)
 PROVIDERS = MetadataProviders(DATABASE)
 PICKER_ROOTS = [Path("/mnt"), Path("/media"), Path("/srv"), Path("/opt"), Path("/var/lib"), Path("/")]
 MEDIA_TYPES = {"tv", "anime", "film"}
+SOURCE_STATUSES = {"none", "imported", "failed", "skipped", "preview", "conflict"}
 
 app = FastAPI(title="TvSorter")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -95,10 +96,10 @@ def browse_page(
     if active_root:
         try:
             entries = list_directory(Path(active_root["path"]), path)
-            imports_by_source = DATABASE.latest_imports_for_sources(
-                [entry.absolute_path for entry in entries if entry.is_video]
-            )
-            entries = [_with_browse_status(entry, imports_by_source) for entry in entries]
+            video_sources = [entry.absolute_path for entry in entries if entry.is_video]
+            imports_by_source = DATABASE.latest_imports_for_sources(video_sources)
+            overrides_by_source = DATABASE.source_status_overrides(video_sources)
+            entries = [_with_browse_status(entry, imports_by_source, overrides_by_source) for entry in entries]
             parent_path = _parent_relative(path)
         except (OSError, ValueError) as exc:
             error = str(exc)
@@ -313,6 +314,22 @@ async def api_episodes(media_type: str, provider_show_id: str) -> dict[str, obje
     }
 
 
+@app.post("/api/source-status")
+def api_source_status(
+    source_path: Annotated[str, Form()],
+    status: Annotated[str, Form()],
+) -> dict[str, object]:
+    source = Path(source_path).resolve()
+    _assert_source_allowed(source)
+    if status == "auto":
+        DATABASE.set_source_status_override(source, None)
+        return {"status": "auto"}
+    if status not in SOURCE_STATUSES:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    DATABASE.set_source_status_override(source, status)
+    return {"status": status}
+
+
 @app.get("/api/folders")
 def api_folders(path: str = Query(default="/")) -> dict[str, object]:
     current_path = _resolve_picker_path(path)
@@ -449,14 +466,31 @@ def _metadata_error_message(exc: Exception) -> str:
     return str(exc)
 
 
-def _with_browse_status(entry: object, imports_by_source: dict[str, object]) -> dict[str, object]:
+def _with_browse_status(
+    entry: object,
+    imports_by_source: dict[str, object],
+    overrides_by_source: dict[str, object],
+) -> dict[str, object]:
     status = None
     latest_import = None
+    override = None
     if getattr(entry, "is_video"):
-        latest_import = imports_by_source.get(str(getattr(entry, "absolute_path").resolve()))
-        if latest_import:
+        source_key = str(getattr(entry, "absolute_path").resolve())
+        override = overrides_by_source.get(source_key)
+        latest_import = imports_by_source.get(source_key)
+        if override:
+            status = None if override["status"] == "none" else override["status"]
+        elif latest_import:
             status = latest_import["result"]
-    return {"entry": entry, "status": status, "latest_import": latest_import}
+    manual_status = override["status"] if override else "auto"
+    status_key = status or "none"
+    return {
+        "entry": entry,
+        "status": status,
+        "status_key": status_key,
+        "manual_status": manual_status,
+        "latest_import": latest_import,
+    }
 
 
 def _settings_checks(input_roots: list, output_roots: dict[str, Path]) -> list[dict[str, object]]:

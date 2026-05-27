@@ -177,3 +177,4 @@ Film Name (Year)/Film Name (Year) - Quality.ext
 - Added actionable permission-denied import errors, sticky input browser controls, and import result state coloring/filtering.
 - Added `tvsorter-access` helper for shared LXC media mounts so TvSorter can match an existing writable UID/GID or group without changing media folder permissions.
 - Added latest import status badges to the input browser for video source files already processed by TvSorter.
+- Added Browse status filters, an "Only no status" view, and manual per-source status overrides stored separately from import history.

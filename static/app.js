@@ -1,4 +1,16 @@
 document.addEventListener("change", (event) => {
+  const browseStatusFilter = event.target.closest("[data-browse-status-filter] input");
+  if (browseStatusFilter) {
+    updateBrowseStatusRows(browseStatusFilter.closest("[data-browse-status-filter]"));
+    return;
+  }
+
+  const manualStatusSelect = event.target.closest(".manual-status-select");
+  if (manualStatusSelect) {
+    updateManualSourceStatus(manualStatusSelect);
+    return;
+  }
+
   const stateFilter = event.target.closest("[data-state-filter] input");
   if (stateFilter) {
     updateStateRows(stateFilter.closest("[data-state-filter]"));
@@ -40,6 +52,20 @@ document.addEventListener("click", async (event) => {
 
   if (event.target.closest("[data-folder-close]")) {
     folderDialog.close();
+    return;
+  }
+
+  const onlyStatusButton = event.target.closest("[data-browse-filter-only]");
+  if (onlyStatusButton) {
+    const filter = onlyStatusButton.closest("[data-browse-status-filter]");
+    setBrowseStatusFilter(filter, onlyStatusButton.dataset.browseFilterOnly);
+    return;
+  }
+
+  const allStatusButton = event.target.closest("[data-browse-filter-all]");
+  if (allStatusButton) {
+    const filter = allStatusButton.closest("[data-browse-status-filter]");
+    setBrowseStatusFilter(filter, null);
     return;
   }
 
@@ -179,4 +205,38 @@ function updateStateRows(filter) {
   document.querySelectorAll(".state-row").forEach((row) => {
     row.hidden = !enabledStates.has(row.dataset.state);
   });
+}
+
+function updateBrowseStatusRows(filter) {
+  const enabledStates = new Set(
+    Array.from(filter.querySelectorAll("input:checked")).map((input) => input.value),
+  );
+  document.querySelectorAll(".browse-row").forEach((row) => {
+    const isFolder = row.dataset.browseFolder === "1";
+    row.hidden = !isFolder && !enabledStates.has(row.dataset.browseStatus);
+  });
+}
+
+function setBrowseStatusFilter(filter, onlyStatus) {
+  filter.querySelectorAll("input").forEach((input) => {
+    input.checked = onlyStatus ? input.value === onlyStatus : true;
+  });
+  updateBrowseStatusRows(filter);
+}
+
+async function updateManualSourceStatus(select) {
+  const formData = new FormData();
+  formData.set("source_path", select.dataset.sourcePath);
+  formData.set("status", select.value);
+  select.disabled = true;
+  const response = await fetch("/api/source-status", {
+    method: "POST",
+    body: formData,
+  });
+  select.disabled = false;
+  if (!response.ok) {
+    alert("Could not update status.");
+    return;
+  }
+  window.location.reload();
 }

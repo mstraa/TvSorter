@@ -118,6 +118,13 @@ h2 {
   flex-wrap: wrap;
 }
 
+.browse-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -176,6 +183,10 @@ button,
   padding: 0;
   display: inline-grid;
   place-items: center;
+}
+
+.compact-button {
+  padding: 7px 10px;
 }
 
 button:hover,
@@ -248,6 +259,10 @@ th {
 
 .state-toggle input {
   width: auto;
+}
+
+.manual-status-select {
+  min-width: 120px;
 }
 
 .state-row td:first-child {
