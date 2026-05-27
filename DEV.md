@@ -184,3 +184,5 @@ Film Name (Year) - Quality.ext
 - Added background import jobs with real copy progress, current item display, and determinate import percentage polling.
 - Hardened long filename/path wrapping in match, preview, and import result views so paths cannot push panels off-screen.
 - Fixed Import Results and Preview table column sizing so long source paths cannot squeeze destination/state columns; empty Error columns are hidden when no rows have errors.
+- Expanded import progress snapshots with item counts, current copy bytes, current-file percentage, and versioned static asset URLs to avoid stale browser JavaScript after updates.
+- Refined the progress panel layout so the percentage stays inside the panel and long filenames/details wrap without duplicating the header.

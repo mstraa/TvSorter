@@ -291,7 +291,8 @@ The app should also offer an output rescan action so files added, removed, or ch
 
 - Show an indeterminate progress indicator when an import, copy, match, preview, or other UI operation takes longer than two seconds.
 - During real imports, use a background import job and show determinate progress when possible, including the current filename and overall percentage.
-- Copy operations should report byte-level progress; hardlinks and other instant actions may report item-level progress.
+- Copy operations should report byte-level progress, current-file percentage, item counts, and total copied bytes; hardlinks and other instant actions may report item-level progress.
+- Browser static assets should be versioned so UI changes from an update are not hidden by cached JavaScript or CSS.
 
 ### Library
 

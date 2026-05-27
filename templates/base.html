@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TvSorter</title>
-  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
-  <script src="{{ url_for('static', path='app.js') }}" defer></script>
+  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}?v={{ asset_version }}">
+  <script src="{{ url_for('static', path='app.js') }}?v={{ asset_version }}" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -29,6 +29,7 @@
         <div class="progress-bar" data-progress-bar></div>
       </div>
       <div class="progress-percent" data-progress-percent></div>
+      <div class="progress-detail" data-progress-detail></div>
     </div>
   </div>
 </body>

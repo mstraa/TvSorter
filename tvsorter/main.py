@@ -31,6 +31,12 @@ PICKER_ROOTS = [Path("/mnt"), Path("/media"), Path("/srv"), Path("/opt"), Path("
 MEDIA_TYPES = {"tv", "anime", "film"}
 SOURCE_STATUSES = {"none", "imported", "failed", "skipped", "preview", "conflict"}
 BROWSE_STATUS_KEYS = SOURCE_STATUSES | {"mixed"}
+ASSET_VERSION = str(
+    max(
+        int((BASE_DIR / "static" / "app.css").stat().st_mtime),
+        int((BASE_DIR / "static" / "app.js").stat().st_mtime),
+    )
+)
 
 
 @dataclass
@@ -39,22 +45,41 @@ class ImportJob:
     requests: list[ImportRequest]
     total_units: int
     completed_units: int = 0
+    completed_items: int = 0
+    current_item_index: int = 0
     current_item: str = ""
+    current_action: str = ""
+    current_item_bytes: int = 0
+    current_item_total: int = 0
     state: str = "running"
     results: list[ImportResult] = field(default_factory=list)
     error: str | None = None
+    lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def snapshot(self) -> dict[str, object]:
-        percent = 100 if self.total_units <= 0 else int(min(100, (self.completed_units / self.total_units) * 100))
-        return {
-            "id": self.id,
-            "state": self.state,
-            "percent": percent,
-            "current_item": self.current_item,
-            "completed": self.completed_units,
-            "total": self.total_units,
-            "error": self.error,
-        }
+        with self.lock:
+            percent = 100 if self.total_units <= 0 else int(min(100, (self.completed_units / self.total_units) * 100))
+            item_percent = (
+                0
+                if self.current_item_total <= 0
+                else int(min(100, (self.current_item_bytes / self.current_item_total) * 100))
+            )
+            return {
+                "id": self.id,
+                "state": self.state,
+                "percent": percent,
+                "current_item": self.current_item,
+                "current_action": self.current_action,
+                "current_item_index": self.current_item_index,
+                "current_item_bytes": self.current_item_bytes,
+                "current_item_total": self.current_item_total,
+                "current_item_percent": item_percent,
+                "completed": self.completed_units,
+                "total": self.total_units,
+                "completed_items": self.completed_items,
+                "total_items": len(self.requests),
+                "error": self.error,
+            }
 
 
 IMPORT_JOBS: dict[str, ImportJob] = {}
@@ -62,6 +87,7 @@ IMPORT_JOBS_LOCK = threading.Lock()
 
 app = FastAPI(title="TvSorter")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates.env.globals["asset_version"] = ASSET_VERSION
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 
@@ -583,27 +609,44 @@ def _build_import_requests(
 
 def _run_import_job(job: ImportJob) -> None:
     try:
-        for import_request in job.requests:
-            item_start = job.completed_units
+        for index, import_request in enumerate(job.requests, start=1):
+            with job.lock:
+                item_start = job.completed_units
+                job.current_item_index = index
+                job.current_item = import_request.source_path.name
+                job.current_action = import_request.action
+                job.current_item_bytes = 0
+                job.current_item_total = _import_request_units(import_request)
             item_units = _import_request_units(import_request)
-            job.current_item = import_request.source_path.name
 
             def update_item_progress(copied: int, total: int) -> None:
-                if total <= 0:
-                    job.completed_units = item_start + item_units
-                    return
-                job.completed_units = item_start + int((copied / total) * item_units)
+                with job.lock:
+                    job.current_item_bytes = copied
+                    job.current_item_total = total
+                    if total <= 0:
+                        job.completed_units = item_start + item_units
+                        return
+                    job.completed_units = item_start + int((copied / total) * item_units)
 
             result = execute_import(import_request, progress_callback=update_item_progress)
             DATABASE.insert_import(result_to_record(result))
-            job.results.append(result)
-            job.completed_units = item_start + item_units
-        job.current_item = ""
-        job.completed_units = job.total_units
-        job.state = "done"
+            with job.lock:
+                job.results.append(result)
+                job.completed_items = index
+                job.current_item_bytes = job.current_item_total
+                job.completed_units = item_start + item_units
+        with job.lock:
+            job.current_item = ""
+            job.current_action = ""
+            job.current_item_index = 0
+            job.current_item_bytes = 0
+            job.current_item_total = 0
+            job.completed_units = job.total_units
+            job.state = "done"
     except Exception as exc:
-        job.error = str(exc)
-        job.state = "failed"
+        with job.lock:
+            job.error = str(exc)
+            job.state = "failed"
 
 
 def _import_request_units(import_request: ImportRequest) -> int:

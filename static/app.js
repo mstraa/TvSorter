@@ -318,6 +318,7 @@ async function startImportJob(form, submitter) {
       return;
     }
     const job = await response.json();
+    updateProgress(job);
     await pollImportJob(job.id);
   } finally {
     if (submitter) {
@@ -346,7 +347,7 @@ async function pollImportJob(jobId) {
       alert(job.error || "Import failed.");
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 250));
   }
 }
 
@@ -390,7 +391,7 @@ function progressLabelForSubmitter(submitter) {
 
 function startDelayedProgress(label, determinate = false) {
   stopDelayedProgress();
-  setProgressState({ percent: determinate ? 0 : null, label, currentItem: "" });
+  setProgressState({ percent: determinate ? 0 : null, label, currentItem: "", detail: "" });
   progressTimer = window.setTimeout(() => {
     const overlay = document.querySelector("[data-progress-overlay]");
     if (!overlay) {
@@ -417,23 +418,32 @@ function stopDelayedProgress() {
 
 window.startDelayedProgress = startDelayedProgress;
 window.stopDelayedProgress = stopDelayedProgress;
+window.updateProgress = updateProgress;
 
 function updateProgress(job) {
-  const label = job.current_item ? `Importing ${job.current_item}` : "Importing...";
-  setProgressState({ percent: job.percent, label, currentItem: job.current_item || "" });
+  const itemPosition = job.current_item_index && job.total_items ? `item ${job.current_item_index} of ${job.total_items}` : "";
+  const label = itemPosition ? `Importing ${itemPosition}` : "Importing...";
+  setProgressState({
+    percent: job.percent,
+    label,
+    currentItem: job.current_item || "",
+    detail: progressDetail(job),
+  });
 }
 
-function setProgressState({ percent, label, currentItem }) {
+function setProgressState({ percent, label, currentItem, detail }) {
   const overlay = document.querySelector("[data-progress-overlay]");
   const labelElement = document.querySelector("[data-progress-label]");
   const itemElement = document.querySelector("[data-progress-item]");
   const percentElement = document.querySelector("[data-progress-percent]");
+  const detailElement = document.querySelector("[data-progress-detail]");
   const bar = document.querySelector("[data-progress-bar]");
-  if (!overlay || !labelElement || !itemElement || !percentElement || !bar) {
+  if (!overlay || !labelElement || !itemElement || !percentElement || !detailElement || !bar) {
     return;
   }
   labelElement.textContent = label;
   itemElement.textContent = currentItem || "";
+  detailElement.textContent = detail || "";
   if (typeof percent === "number") {
     overlay.dataset.progressMode = "determinate";
     percentElement.textContent = `${Math.max(0, Math.min(100, percent))}%`;
@@ -443,4 +453,33 @@ function setProgressState({ percent, label, currentItem }) {
     percentElement.textContent = "";
     bar.style.width = "";
   }
+}
+
+function progressDetail(job) {
+  const parts = [];
+  if (typeof job.completed_items === "number" && typeof job.total_items === "number") {
+    parts.push(`${job.completed_items}/${job.total_items} items done`);
+  }
+  if (job.current_action === "copy" && job.current_item_total > 0) {
+    parts.push(
+      `${job.current_item_percent}% of current file (${formatBytes(job.current_item_bytes)} / ${formatBytes(job.current_item_total)})`,
+    );
+  } else if (job.current_action) {
+    parts.push(`${job.current_action} in progress`);
+  }
+  if (job.current_action === "copy" && typeof job.completed === "number" && typeof job.total === "number" && job.total > 0) {
+    parts.push(`${formatBytes(job.completed)} / ${formatBytes(job.total)} total`);
+  }
+  return parts.join(" - ");
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return "0 B";
+  }
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / (1024 ** exponent);
+  const precision = value >= 10 || exponent === 0 ? 0 : 1;
+  return `${value.toFixed(precision)} ${units[exponent]}`;
 }
