@@ -31,7 +31,7 @@ PROVIDERS = MetadataProviders(DATABASE)
 PICKER_ROOTS = [Path("/mnt"), Path("/media"), Path("/srv"), Path("/opt"), Path("/var/lib"), Path("/")]
 MEDIA_TYPES = {"tv", "anime", "film"}
 SOURCE_STATUSES = {"none", "imported", "failed", "skipped", "preview", "conflict"}
-BROWSE_STATUS_KEYS = SOURCE_STATUSES | {"mixed"}
+BROWSE_STATUS_KEYS = SOURCE_STATUSES | {"cancelled", "mixed"}
 ASSET_VERSION = str(
     max(
         int((BASE_DIR / "static" / "app.css").stat().st_mtime),
@@ -53,6 +53,7 @@ class ImportJob:
     current_item_bytes: int = 0
     current_item_total: int = 0
     state: str = "running"
+    cancel_requested: bool = False
     results: list[ImportResult] = field(default_factory=list)
     error: str | None = None
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
@@ -79,6 +80,7 @@ class ImportJob:
                 "total": self.total_units,
                 "completed_items": self.completed_items,
                 "total_items": len(self.requests),
+                "cancel_requested": self.cancel_requested,
                 "error": self.error,
             }
 
@@ -421,10 +423,19 @@ def api_import_job(job_id: str) -> dict[str, object]:
     return _get_import_job(job_id).snapshot()
 
 
+@app.post("/api/import-jobs/{job_id}/cancel")
+def api_cancel_import_job(job_id: str) -> dict[str, object]:
+    job = _get_import_job(job_id)
+    with job.lock:
+        if job.state == "running":
+            job.cancel_requested = True
+    return job.snapshot()
+
+
 @app.get("/import-jobs/{job_id}/results", response_class=HTMLResponse)
 def import_job_results(request: Request, job_id: str) -> HTMLResponse:
     job = _get_import_job(job_id)
-    if job.state != "done":
+    if job.state not in {"done", "cancelled"}:
         raise HTTPException(status_code=409, detail="Import job is not done")
     return templates.TemplateResponse(request, "import_results.html", {"results": job.results})
 
@@ -617,6 +628,9 @@ def _run_import_job(job: ImportJob, copy_rate_limit_mbps: float | None = None) -
     try:
         for index, import_request in enumerate(job.requests, start=1):
             with job.lock:
+                if job.cancel_requested:
+                    job.state = "cancelled"
+                    break
                 item_start = job.completed_units
                 job.current_item_index = index
                 job.current_item = import_request.source_path.name
@@ -638,25 +652,37 @@ def _run_import_job(job: ImportJob, copy_rate_limit_mbps: float | None = None) -
                 import_request,
                 progress_callback=update_item_progress,
                 copy_rate_limit_mbps=copy_rate_limit_mbps,
+                cancellation_callback=lambda: _job_cancel_requested(job),
             )
             DATABASE.insert_import(result_to_record(result))
             with job.lock:
                 job.results.append(result)
-                job.completed_items = index
-                job.current_item_bytes = job.current_item_total
-                job.completed_units = item_start + item_units
+                if result.result != "cancelled":
+                    job.completed_items = index
+                    job.current_item_bytes = job.current_item_total
+                    job.completed_units = item_start + item_units
+                else:
+                    job.cancel_requested = True
+                    job.state = "cancelled"
+                    break
         with job.lock:
             job.current_item = ""
             job.current_action = ""
             job.current_item_index = 0
             job.current_item_bytes = 0
             job.current_item_total = 0
-            job.completed_units = job.total_units
-            job.state = "done"
+            if job.state != "cancelled":
+                job.completed_units = job.total_units
+                job.state = "done"
     except Exception as exc:
         with job.lock:
             job.error = str(exc)
             job.state = "failed"
+
+
+def _job_cancel_requested(job: ImportJob) -> bool:
+    with job.lock:
+        return job.cancel_requested
 
 
 def _import_request_units(import_request: ImportRequest) -> int:

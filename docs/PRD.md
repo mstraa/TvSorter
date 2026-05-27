@@ -140,6 +140,8 @@ Film output root:
 16. App records the import in SQLite.
 17. App shows the imported item in library/history views.
 
+If the user cancels a running import, TvSorter should stop the current copy, remove any partial destination file, abort remaining queued items, and keep already completed imports recorded.
+
 ## Naming Format
 
 TV and Anime use the same structure, but under separate output roots.

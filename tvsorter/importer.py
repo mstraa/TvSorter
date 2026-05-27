@@ -42,6 +42,11 @@ class ImportResult:
 
 
 ProgressCallback = Callable[[int, int], None]
+CancellationCallback = Callable[[], bool]
+
+
+class ImportCancelled(Exception):
+    pass
 
 
 def preview_import(request: ImportRequest) -> ImportResult:
@@ -55,6 +60,7 @@ def execute_import(
     request: ImportRequest,
     progress_callback: ProgressCallback | None = None,
     copy_rate_limit_mbps: float | None = None,
+    cancellation_callback: CancellationCallback | None = None,
 ) -> ImportResult:
     output_path = _build_destination(request)
     try:
@@ -69,17 +75,30 @@ def execute_import(
         return ImportResult(request, output_path, final_path, "preview")
 
     try:
+        if cancellation_callback and cancellation_callback():
+            return ImportResult(request, output_path, final_path, "cancelled", "Import cancelled.")
         final_path.parent.mkdir(parents=True, exist_ok=True)
         if final_path.exists() and request.conflict_policy == "replace":
             final_path.unlink()
         if request.action == "hardlink":
+            if cancellation_callback and cancellation_callback():
+                return ImportResult(request, output_path, final_path, "cancelled", "Import cancelled.")
             os.link(request.source_path, final_path)
             if progress_callback:
                 progress_callback(1, 1)
         elif request.action == "copy":
-            _copy_with_progress(request.source_path, final_path, progress_callback, copy_rate_limit_mbps)
+            _copy_with_progress(
+                request.source_path,
+                final_path,
+                progress_callback,
+                copy_rate_limit_mbps,
+                cancellation_callback,
+            )
         else:
             return ImportResult(request, output_path, final_path, "failed", f"Unsupported action: {request.action}")
+    except ImportCancelled:
+        _remove_partial_file(final_path)
+        return ImportResult(request, output_path, final_path, "cancelled", "Import cancelled.")
     except OSError as exc:
         if exc.errno == errno.EXDEV and request.action == "hardlink":
             message = "Hardlink failed because source and destination are on different filesystems."
@@ -175,6 +194,7 @@ def _copy_with_progress(
     destination: Path,
     progress_callback: ProgressCallback | None = None,
     copy_rate_limit_mbps: float | None = None,
+    cancellation_callback: CancellationCallback | None = None,
 ) -> None:
     total = source.stat().st_size
     copied = 0
@@ -183,6 +203,8 @@ def _copy_with_progress(
     bytes_per_second = copy_rate_limit_mbps * 1024 * 1024 if copy_rate_limit_mbps and copy_rate_limit_mbps > 0 else None
     with source.open("rb") as source_file, destination.open("wb") as destination_file:
         while True:
+            if cancellation_callback and cancellation_callback():
+                raise ImportCancelled
             chunk = source_file.read(chunk_size)
             if not chunk:
                 break
@@ -194,10 +216,29 @@ def _copy_with_progress(
                 expected_elapsed = copied / bytes_per_second
                 actual_elapsed = time.monotonic() - started_at
                 if expected_elapsed > actual_elapsed:
-                    time.sleep(expected_elapsed - actual_elapsed)
+                    _sleep_until_next_chunk(expected_elapsed - actual_elapsed, cancellation_callback)
     shutil.copystat(source, destination)
     if progress_callback:
         progress_callback(total, total)
+
+
+def _remove_partial_file(path: Path) -> None:
+    try:
+        if path.exists():
+            path.unlink()
+    except OSError:
+        pass
+
+
+def _sleep_until_next_chunk(duration: float, cancellation_callback: CancellationCallback | None) -> None:
+    deadline = time.monotonic() + duration
+    while True:
+        if cancellation_callback and cancellation_callback():
+            raise ImportCancelled
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        time.sleep(min(remaining, 0.1))
 
 
 def _format_os_error(exc: OSError, destination: Path) -> str:

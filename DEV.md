@@ -190,3 +190,4 @@ Film Name (Year) - Quality.ext
 - Added human-readable file size formatting with French-style units and comma decimals in Browse, Library, and import progress details.
 - Moved selected-item status controls above the Browse root/type controls and replaced status filter chips with a dropdown that defaults to only no-status rows.
 - Fixed Browse table word breaks for status/type/size columns and added a configurable copy speed limit, defaulting to 15 Mo/s, to reduce Proxmox disk IO pressure during large copies.
+- Added import cancellation from the progress dialog; cancellation stops the current copy, removes the partial file, aborts queued items, and keeps completed results.

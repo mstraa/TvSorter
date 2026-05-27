@@ -3,6 +3,7 @@ initializeBrowseStatusFilters();
 
 let progressTimer = null;
 let progressVisible = false;
+let activeImportJobId = null;
 
 document.addEventListener("submit", (event) => {
   const submitter = event.submitter;
@@ -85,6 +86,12 @@ document.addEventListener("click", async (event) => {
   const applyStatusButton = event.target.closest("[data-apply-selected-status]");
   if (applyStatusButton) {
     await applySelectedSourceStatus(applyStatusButton);
+    return;
+  }
+
+  const progressCancelButton = event.target.closest("[data-progress-cancel]");
+  if (progressCancelButton) {
+    await cancelActiveImport(progressCancelButton);
     return;
   }
 
@@ -301,6 +308,7 @@ async function startImportJob(form, submitter) {
       return;
     }
     const job = await response.json();
+    activeImportJobId = job.id;
     updateProgress(job);
     await pollImportJob(job.id);
   } finally {
@@ -320,7 +328,7 @@ async function pollImportJob(jobId) {
     }
     const job = await response.json();
     updateProgress(job);
-    if (job.state === "done") {
+    if (job.state === "done" || job.state === "cancelled") {
       stopDelayedProgress();
       window.location.href = `/import-jobs/${encodeURIComponent(jobId)}/results`;
       return;
@@ -331,6 +339,32 @@ async function pollImportJob(jobId) {
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+}
+
+async function cancelActiveImport(button) {
+  if (!activeImportJobId) {
+    return;
+  }
+  button.disabled = true;
+  button.textContent = "Cancelling...";
+  try {
+    const response = await fetch(`/api/import-jobs/${encodeURIComponent(activeImportJobId)}/cancel`, {
+      method: "POST",
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      alert(payload.detail || "Could not cancel import.");
+      button.disabled = false;
+      button.textContent = "Cancel import";
+      return;
+    }
+    const job = await response.json();
+    updateProgress(job);
+  } catch {
+    alert("Could not cancel import.");
+    button.disabled = false;
+    button.textContent = "Cancel import";
   }
 }
 
@@ -397,6 +431,13 @@ function stopDelayedProgress() {
     }
     progressVisible = false;
   }
+  activeImportJobId = null;
+  const cancelButton = document.querySelector("[data-progress-cancel]");
+  if (cancelButton) {
+    cancelButton.hidden = true;
+    cancelButton.disabled = false;
+    cancelButton.textContent = "Cancel import";
+  }
 }
 
 window.startDelayedProgress = startDelayedProgress;
@@ -405,22 +446,26 @@ window.updateProgress = updateProgress;
 
 function updateProgress(job) {
   const itemPosition = job.current_item_index && job.total_items ? `item ${job.current_item_index} of ${job.total_items}` : "";
-  const label = itemPosition ? `Importing ${itemPosition}` : "Importing...";
+  const labelPrefix = job.cancel_requested ? "Cancelling" : "Importing";
+  const label = itemPosition ? `${labelPrefix} ${itemPosition}` : `${labelPrefix}...`;
   setProgressState({
     percent: job.percent,
     label,
     currentItem: job.current_item || "",
     detail: progressDetail(job),
+    cancellable: job.state === "running",
+    cancelRequested: job.cancel_requested,
   });
 }
 
-function setProgressState({ percent, label, currentItem, detail }) {
+function setProgressState({ percent, label, currentItem, detail, cancellable = false, cancelRequested = false }) {
   const overlay = document.querySelector("[data-progress-overlay]");
   const labelElement = document.querySelector("[data-progress-label]");
   const itemElement = document.querySelector("[data-progress-item]");
   const percentElement = document.querySelector("[data-progress-percent]");
   const detailElement = document.querySelector("[data-progress-detail]");
   const bar = document.querySelector("[data-progress-bar]");
+  const cancelButton = document.querySelector("[data-progress-cancel]");
   if (!overlay || !labelElement || !itemElement || !percentElement || !detailElement || !bar) {
     return;
   }
@@ -436,10 +481,18 @@ function setProgressState({ percent, label, currentItem, detail }) {
     percentElement.textContent = "";
     bar.style.width = "";
   }
+  if (cancelButton) {
+    cancelButton.hidden = !cancellable;
+    cancelButton.disabled = cancelRequested;
+    cancelButton.textContent = cancelRequested ? "Cancelling..." : "Cancel import";
+  }
 }
 
 function progressDetail(job) {
   const parts = [];
+  if (job.cancel_requested) {
+    parts.push("Cancelling after the current copy stops");
+  }
   if (typeof job.completed_items === "number" && typeof job.total_items === "number") {
     parts.push(`${job.completed_items}/${job.total_items} items done`);
   }

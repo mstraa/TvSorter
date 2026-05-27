@@ -420,6 +420,20 @@ th {
   border-left-color: #d8c27a;
 }
 
+.state-row.state-cancelled,
+.state-toggle.state-cancelled,
+.state-badge.state-cancelled {
+  border-color: #d8c27a;
+}
+
+.state-row.state-cancelled {
+  background: var(--skipped-bg);
+}
+
+.state-row.state-cancelled td:first-child {
+  border-left-color: #d8c27a;
+}
+
 .state-row.state-preview,
 .state-toggle.state-preview,
 .state-badge.state-preview {
@@ -685,6 +699,11 @@ th {
   font-size: 13px;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.progress-cancel {
+  grid-column: 1 / -1;
+  justify-self: end;
 }
 
 @keyframes progress-slide {

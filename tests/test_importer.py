@@ -60,6 +60,30 @@ def test_copy_import_accepts_rate_limit(tmp_path: Path) -> None:
     assert result.final_path.read_bytes() == b"episode-data"
 
 
+def test_copy_import_can_be_cancelled(tmp_path: Path) -> None:
+    source = tmp_path / "source.mkv"
+    source.write_bytes(b"x" * (512 * 1024))
+    output_root = tmp_path / "library"
+    should_cancel = False
+
+    def progress(copied: int, total: int) -> None:
+        nonlocal should_cancel
+        assert total == source.stat().st_size
+        if copied > 0:
+            should_cancel = True
+
+    result = execute_import(
+        _request(source, output_root, "copy"),
+        progress_callback=progress,
+        cancellation_callback=lambda: should_cancel,
+    )
+
+    assert result.result == "cancelled"
+    assert result.error == "Import cancelled."
+    assert source.exists()
+    assert not result.final_path.exists()
+
+
 def test_skip_conflict_does_not_overwrite(tmp_path: Path) -> None:
     source = tmp_path / "source.mkv"
     source.write_text("new")

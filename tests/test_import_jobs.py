@@ -44,3 +44,4 @@ def test_import_job_snapshot_includes_detailed_progress(tmp_path: Path) -> None:
     assert snapshot["current_item_total"] == 100
     assert snapshot["completed_items"] == 0
     assert snapshot["total_items"] == 2
+    assert snapshot["cancel_requested"] is False
