@@ -252,6 +252,7 @@ The app should also offer an output rescan action so files added, removed, or ch
 - Show files and folders.
 - Select one or more files/folders.
 - Expand selected folders recursively into video files.
+- Keep root/type/action controls visible while scrolling long folders.
 
 ### Match Queue
 
@@ -268,6 +269,13 @@ The app should also offer an output rescan action so files added, removed, or ch
 - Show selected action.
 - Show conflict status.
 - Allow final validation before import.
+
+### Import Results
+
+- Show a clear state for each attempted import.
+- Color rows by state so failed, skipped, preview, conflict, and imported rows are easy to scan.
+- Allow filtering visible rows by state.
+- Show permission failures with actionable output-mount guidance.
 
 ### Library
 

@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from tvsorter.importer import ImportRequest, execute_import
+import errno
+
+from tvsorter.importer import ImportRequest, _format_os_error, execute_import
 
 
 def _request(source: Path, output_root: Path, action: str, conflict_policy: str = "skip") -> ImportRequest:
@@ -79,3 +81,13 @@ def test_film_import_uses_film_naming(tmp_path: Path) -> None:
 
     assert result.result == "imported"
     assert result.final_path == output_root / "Blade Runner 2049 (2017)" / "Blade Runner 2049 (2017) - 2160p.mkv"
+
+
+def test_permission_error_is_actionable() -> None:
+    message = _format_os_error(
+        PermissionError(errno.EACCES, "Permission denied"),
+        Path("/mnt/data/Movies/12 Angry Men (1957)/12 Angry Men (1957) - 720p.mkv"),
+    )
+
+    assert "Permission denied while writing to /mnt/data/Movies/12 Angry Men (1957)" in message
+    assert "Proxmox host" in message

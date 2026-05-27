@@ -6,36 +6,37 @@
     <p>No input roots are configured.</p>
     <a class="button" href="/settings">Open Settings</a>
   {% else %}
-    <form method="get" action="/browse" class="toolbar">
-      <label>
-        Input root
-        <select name="root_id" onchange="this.form.submit()">
-          {% for root in roots %}
-            <option value="{{ root.id }}" {% if active_root and root.id == active_root.id %}selected{% endif %}>{{ root.path }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <input type="hidden" name="path" value="">
-    </form>
     {% if error %}
       <p class="error">{{ error }}</p>
     {% else %}
-      <p class="muted">Current path: /{{ current_path }}</p>
-      {% if current_path %}
-        <a href="/browse?root_id={{ active_root.id }}&path={{ parent_path }}">Up one folder</a>
-      {% endif %}
       <form method="post" action="/match" class="stack">
         <input type="hidden" name="root_id" value="{{ active_root.id }}">
-        <div class="toolbar">
-          <label>
-            Type
-            <select name="media_type">
-              <option value="tv">TV</option>
-              <option value="anime">Anime</option>
-              <option value="film">Film</option>
-            </select>
-          </label>
-          <button type="submit">Match Selected</button>
+        <div class="sticky-controls">
+          <div class="toolbar">
+            <label>
+              Input root
+              <select name="browse_root_id" onchange="window.location.href = '/browse?root_id=' + this.value + '&path='">
+                {% for root in roots %}
+                  <option value="{{ root.id }}" {% if active_root and root.id == active_root.id %}selected{% endif %}>{{ root.path }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Type
+              <select name="media_type">
+                <option value="tv">TV</option>
+                <option value="anime">Anime</option>
+                <option value="film">Film</option>
+              </select>
+            </label>
+            <button type="submit">Match Selected</button>
+          </div>
+          <div class="pathbar">
+            <span class="muted">Current path: /{{ current_path }}</span>
+            {% if current_path %}
+              <a href="/browse?root_id={{ active_root.id }}&path={{ parent_path }}">Up one folder</a>
+            {% endif %}
+          </div>
         </div>
         <table>
           <thead><tr><th></th><th>Name</th><th>Type</th><th>Size</th></tr></thead>

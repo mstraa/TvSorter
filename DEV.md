@@ -111,6 +111,8 @@ Film Name (Year)/Film Name (Year) - Quality.ext
 - [x] Input browser.
 - [x] Match queue.
 - [x] Manual correction UI.
+- [x] Sticky browser controls for long folder lists.
+- [x] Import result state badges, row colors, and state filters.
 - [x] Import preview.
 - [x] Library view.
 - [x] History/logs view.
@@ -169,3 +171,7 @@ Film Name (Year)/Film Name (Year) - Quality.ext
 - Added Film media type with separate output root, film parser, film naming, import support, and SQLite migration for existing DBs.
 - Added anime-style `E02` parsing, Jikan throttling/retry behavior, batch provider de-duplication, and Wikidata film lookup.
 - Changed Film lookup to prefer movie-focused IMDb-style suggestion results before Wikidata, and added Wikimedia API identification headers plus cleaner 401/403 metadata fallback errors.
+
+### 2026-05-27
+
+- Added actionable permission-denied import errors, sticky input browser controls, and import result state coloring/filtering.

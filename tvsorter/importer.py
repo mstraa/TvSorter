@@ -73,7 +73,7 @@ def execute_import(request: ImportRequest) -> ImportResult:
         if exc.errno == errno.EXDEV and request.action == "hardlink":
             message = "Hardlink failed because source and destination are on different filesystems."
         else:
-            message = str(exc)
+            message = _format_os_error(exc, final_path)
         return ImportResult(request, output_path, final_path, "failed", message)
 
     return ImportResult(request, output_path, final_path, "imported")
@@ -157,3 +157,13 @@ def _indexed_path(path: Path) -> Path:
         if not candidate.exists():
             return candidate
     raise FileExistsError(f"No available indexed destination for: {path}")
+
+
+def _format_os_error(exc: OSError, destination: Path) -> str:
+    if exc.errno in {errno.EACCES, errno.EPERM}:
+        return (
+            f"Permission denied while writing to {destination.parent}. "
+            "Grant the tvsorter service user write access to the output mount, "
+            "or adjust the bind-mount ownership/permissions on the Proxmox host."
+        )
+    return str(exc)

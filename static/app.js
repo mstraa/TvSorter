@@ -1,4 +1,10 @@
 document.addEventListener("change", (event) => {
+  const stateFilter = event.target.closest("[data-state-filter] input");
+  if (stateFilter) {
+    updateStateRows(stateFilter.closest("[data-state-filter]"));
+    return;
+  }
+
   const select = event.target.closest(".candidate-select");
   if (!select) {
     return;
@@ -163,5 +169,14 @@ function escapeHtml(value) {
       "'": "&#39;",
     };
     return entities[character];
+  });
+}
+
+function updateStateRows(filter) {
+  const enabledStates = new Set(
+    Array.from(filter.querySelectorAll("input:checked")).map((input) => input.value),
+  );
+  document.querySelectorAll(".state-row").forEach((row) => {
+    row.hidden = !enabledStates.has(row.dataset.state);
   });
 }
