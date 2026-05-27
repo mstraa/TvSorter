@@ -160,16 +160,16 @@ Anime example:
 /mnt/media/Anime/Cowboy Bebop (1998)/Season 01/Cowboy Bebop (1998) - S01E01 - Asteroid Blues - 1080p.mkv
 ```
 
-Film uses a movie-style structure under the Film output root.
+Film files are written directly under the Film output root.
 
 ```text
-Film Name (Year)/Film Name (Year) - Quality.ext
+Film Name (Year) - Quality.ext
 ```
 
 Film example:
 
 ```text
-/mnt/media/Films/Blade Runner 2049 (2017)/Blade Runner 2049 (2017) - 2160p.mkv
+/mnt/media/Films/Blade Runner 2049 (2017) - 2160p.mkv
 ```
 
 ## Quality Detection

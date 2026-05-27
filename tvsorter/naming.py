@@ -68,4 +68,4 @@ def film_destination_path(
     show = show_folder_name(title, year)
     safe_quality = sanitize_component(quality)
     filename = f"{show} - {safe_quality}{source_path.suffix}"
-    return output_root / show / filename
+    return output_root / filename
