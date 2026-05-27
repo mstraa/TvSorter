@@ -95,6 +95,10 @@ def browse_page(
     if active_root:
         try:
             entries = list_directory(Path(active_root["path"]), path)
+            imports_by_source = DATABASE.latest_imports_for_sources(
+                [entry.absolute_path for entry in entries if entry.is_video]
+            )
+            entries = [_with_browse_status(entry, imports_by_source) for entry in entries]
             parent_path = _parent_relative(path)
         except (OSError, ValueError) as exc:
             error = str(exc)
@@ -443,6 +447,16 @@ def _metadata_error_message(exc: Exception) -> str:
         if exc.response.status_code in {401, 403}:
             return "Metadata provider refused the request. Filename parsing was used for this item."
     return str(exc)
+
+
+def _with_browse_status(entry: object, imports_by_source: dict[str, object]) -> dict[str, object]:
+    status = None
+    latest_import = None
+    if getattr(entry, "is_video"):
+        latest_import = imports_by_source.get(str(getattr(entry, "absolute_path").resolve()))
+        if latest_import:
+            status = latest_import["result"]
+    return {"entry": entry, "status": status, "latest_import": latest_import}
 
 
 def _settings_checks(input_roots: list, output_roots: dict[str, Path]) -> list[dict[str, object]]:

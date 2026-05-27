@@ -176,6 +176,27 @@ class Database:
             ).fetchall()
         return list(rows)
 
+    def latest_imports_for_sources(self, source_paths: list[Path]) -> dict[str, sqlite3.Row]:
+        if not source_paths:
+            return {}
+        normalized_paths = [str(path.resolve()) for path in source_paths]
+        placeholders = ", ".join(["?"] * len(normalized_paths))
+        with self.connect() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT *
+                FROM imports
+                WHERE id IN (
+                    SELECT MAX(id)
+                    FROM imports
+                    WHERE source_path IN ({placeholders})
+                    GROUP BY source_path
+                )
+                """,
+                normalized_paths,
+            ).fetchall()
+        return {row["source_path"]: row for row in rows}
+
     def list_library_files(self) -> list[sqlite3.Row]:
         with self.connect() as conn:
             rows = conn.execute(

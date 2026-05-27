@@ -76,3 +76,37 @@ def test_database_migrates_media_type_checks_for_film(tmp_path: Path) -> None:
     )
 
     assert database.list_imports()[0]["media_type"] == "film"
+
+
+def test_latest_imports_for_sources_returns_newest_status(tmp_path: Path) -> None:
+    database = Database(tmp_path / "tvsorter.db")
+    database.init()
+    source = (tmp_path / "source.mkv").resolve()
+
+    base_record = {
+        "source_path": str(source),
+        "source_size": None,
+        "source_mtime": None,
+        "source_device": None,
+        "source_inode": None,
+        "output_path": str(tmp_path / "library" / "Film.mkv"),
+        "media_type": "film",
+        "provider": None,
+        "provider_show_id": None,
+        "show_title": "Film",
+        "show_year": 2026,
+        "season_number": 0,
+        "episode_number": 0,
+        "episode_title": "Film",
+        "quality": "1080p",
+        "action": "copy",
+        "conflict_policy": "skip",
+        "result": "failed",
+        "error": "Permission denied",
+    }
+    database.insert_import(base_record)
+    database.insert_import(base_record | {"result": "imported", "error": None})
+
+    rows = database.latest_imports_for_sources([source])
+
+    assert rows[str(source)]["result"] == "imported"

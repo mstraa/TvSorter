@@ -39,16 +39,22 @@
           </div>
         </div>
         <table>
-          <thead><tr><th></th><th>Name</th><th>Type</th><th>Size</th></tr></thead>
+          <thead><tr><th></th><th>Name</th><th>Status</th><th>Type</th><th>Size</th></tr></thead>
           <tbody>
-          {% for entry in entries %}
-            <tr>
+          {% for row in entries %}
+            {% set entry = row.entry %}
+            <tr class="{% if row.status %}state-row state-{{ row.status }}{% endif %}">
               <td><input type="checkbox" name="selected" value="{{ entry.relative_path }}"></td>
               <td>
                 {% if entry.is_dir %}
                   <a href="/browse?root_id={{ active_root.id }}&path={{ entry.relative_path }}">{{ entry.name }}</a>
                 {% else %}
                   {{ entry.name }}
+                {% endif %}
+              </td>
+              <td>
+                {% if row.status %}
+                  <span class="state-badge state-{{ row.status }}">{{ row.status }}</span>
                 {% endif %}
               </td>
               <td>{{ "folder" if entry.is_dir else ("video" if entry.is_video else "file") }}</td>

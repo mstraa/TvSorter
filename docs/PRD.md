@@ -254,6 +254,7 @@ The app should also offer an output rescan action so files added, removed, or ch
 - Select one or more files/folders.
 - Expand selected folders recursively into video files.
 - Keep root/type/action controls visible while scrolling long folders.
+- Show the latest import status for video source files already processed by TvSorter.
 
 ### Match Queue
 
