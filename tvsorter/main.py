@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import threading
+import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated
 
@@ -28,6 +31,34 @@ PICKER_ROOTS = [Path("/mnt"), Path("/media"), Path("/srv"), Path("/opt"), Path("
 MEDIA_TYPES = {"tv", "anime", "film"}
 SOURCE_STATUSES = {"none", "imported", "failed", "skipped", "preview", "conflict"}
 BROWSE_STATUS_KEYS = SOURCE_STATUSES | {"mixed"}
+
+
+@dataclass
+class ImportJob:
+    id: str
+    requests: list[ImportRequest]
+    total_units: int
+    completed_units: int = 0
+    current_item: str = ""
+    state: str = "running"
+    results: list[ImportResult] = field(default_factory=list)
+    error: str | None = None
+
+    def snapshot(self) -> dict[str, object]:
+        percent = 100 if self.total_units <= 0 else int(min(100, (self.completed_units / self.total_units) * 100))
+        return {
+            "id": self.id,
+            "state": self.state,
+            "percent": percent,
+            "current_item": self.current_item,
+            "completed": self.completed_units,
+            "total": self.total_units,
+            "error": self.error,
+        }
+
+
+IMPORT_JOBS: dict[str, ImportJob] = {}
+IMPORT_JOBS_LOCK = threading.Lock()
 
 app = FastAPI(title="TvSorter")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -181,35 +212,22 @@ def run_imports(
     provider: Annotated[list[str], Form()],
     provider_show_id: Annotated[list[str], Form()],
 ) -> HTMLResponse:
-    if media_type not in MEDIA_TYPES:
-        raise HTTPException(status_code=400, detail="Invalid media type")
-    if action not in {"hardlink", "copy", "test"}:
-        raise HTTPException(status_code=400, detail="Invalid action")
-    if conflict_policy not in {"skip", "replace", "index", "fail"}:
-        raise HTTPException(status_code=400, detail="Invalid conflict policy")
-    output_root = _output_roots().get(media_type)
-    if not output_root:
-        raise HTTPException(status_code=400, detail=f"No {media_type} output root configured")
-
+    import_requests = _build_import_requests(
+        media_type=media_type,
+        action=action,
+        conflict_policy=conflict_policy,
+        source_path=source_path,
+        show_title=show_title,
+        show_year=show_year,
+        season_number=season_number,
+        episode_number=episode_number,
+        episode_title=episode_title,
+        quality=quality,
+        provider=provider,
+        provider_show_id=provider_show_id,
+    )
     results = []
-    for index, source in enumerate(source_path):
-        source_file = Path(source).resolve()
-        _assert_source_allowed(source_file)
-        request_model = ImportRequest(
-            source_path=source_file,
-            output_root=output_root,
-            media_type=media_type,
-            show_title=show_title[index],
-            show_year=_optional_int(show_year[index]),
-            season_number=season_number[index],
-            episode_number=episode_number[index],
-            episode_title=episode_title[index],
-            quality=quality[index],
-            action=action,
-            conflict_policy=conflict_policy,
-            provider=provider[index] or None,
-            provider_show_id=provider_show_id[index] or None,
-        )
+    for request_model in import_requests:
         result = execute_import(request_model)
         DATABASE.insert_import(result_to_record(result))
         results.append(result)
@@ -336,6 +354,47 @@ def api_source_status(
         raise HTTPException(status_code=400, detail="Invalid status")
     DATABASE.set_source_status_overrides(sources, status)
     return {"status": status, "updated": len(sources)}
+
+
+@app.post("/api/import-jobs")
+async def api_start_import_job(request: Request) -> dict[str, object]:
+    form = await request.form()
+    import_requests = _build_import_requests(
+        media_type=str(form.get("media_type", "")),
+        action=str(form.get("action", "")),
+        conflict_policy=str(form.get("conflict_policy", "")),
+        source_path=[str(value) for value in form.getlist("source_path")],
+        show_title=[str(value) for value in form.getlist("show_title")],
+        show_year=[str(value) for value in form.getlist("show_year")],
+        season_number=[int(value) for value in form.getlist("season_number")],
+        episode_number=[int(value) for value in form.getlist("episode_number")],
+        episode_title=[str(value) for value in form.getlist("episode_title")],
+        quality=[str(value) for value in form.getlist("quality")],
+        provider=[str(value) for value in form.getlist("provider")],
+        provider_show_id=[str(value) for value in form.getlist("provider_show_id")],
+    )
+    job = ImportJob(
+        id=uuid.uuid4().hex,
+        requests=import_requests,
+        total_units=sum(_import_request_units(import_request) for import_request in import_requests),
+    )
+    with IMPORT_JOBS_LOCK:
+        IMPORT_JOBS[job.id] = job
+    threading.Thread(target=_run_import_job, args=(job,), daemon=True).start()
+    return job.snapshot()
+
+
+@app.get("/api/import-jobs/{job_id}")
+def api_import_job(job_id: str) -> dict[str, object]:
+    return _get_import_job(job_id).snapshot()
+
+
+@app.get("/import-jobs/{job_id}/results", response_class=HTMLResponse)
+def import_job_results(request: Request, job_id: str) -> HTMLResponse:
+    job = _get_import_job(job_id)
+    if job.state != "done":
+        raise HTTPException(status_code=409, detail="Import job is not done")
+    return templates.TemplateResponse(request, "import_results.html", {"results": job.results})
 
 
 @app.get("/api/folders")
@@ -472,6 +531,96 @@ def _metadata_error_message(exc: Exception) -> str:
         if exc.response.status_code in {401, 403}:
             return "Metadata provider refused the request. Filename parsing was used for this item."
     return str(exc)
+
+
+def _build_import_requests(
+    media_type: str,
+    action: str,
+    conflict_policy: str,
+    source_path: list[str],
+    show_title: list[str],
+    show_year: list[str],
+    season_number: list[int],
+    episode_number: list[int],
+    episode_title: list[str],
+    quality: list[str],
+    provider: list[str],
+    provider_show_id: list[str],
+) -> list[ImportRequest]:
+    if media_type not in MEDIA_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid media type")
+    if action not in {"hardlink", "copy", "test"}:
+        raise HTTPException(status_code=400, detail="Invalid action")
+    if conflict_policy not in {"skip", "replace", "index", "fail"}:
+        raise HTTPException(status_code=400, detail="Invalid conflict policy")
+    output_root = _output_roots().get(media_type)
+    if not output_root:
+        raise HTTPException(status_code=400, detail=f"No {media_type} output root configured")
+
+    requests = []
+    for index, source in enumerate(source_path):
+        source_file = Path(source).resolve()
+        _assert_source_allowed(source_file)
+        requests.append(
+            ImportRequest(
+                source_path=source_file,
+                output_root=output_root,
+                media_type=media_type,
+                show_title=show_title[index],
+                show_year=_optional_int(show_year[index]),
+                season_number=season_number[index],
+                episode_number=episode_number[index],
+                episode_title=episode_title[index],
+                quality=quality[index],
+                action=action,
+                conflict_policy=conflict_policy,
+                provider=provider[index] or None,
+                provider_show_id=provider_show_id[index] or None,
+            )
+        )
+    return requests
+
+
+def _run_import_job(job: ImportJob) -> None:
+    try:
+        for import_request in job.requests:
+            item_start = job.completed_units
+            item_units = _import_request_units(import_request)
+            job.current_item = import_request.source_path.name
+
+            def update_item_progress(copied: int, total: int) -> None:
+                if total <= 0:
+                    job.completed_units = item_start + item_units
+                    return
+                job.completed_units = item_start + int((copied / total) * item_units)
+
+            result = execute_import(import_request, progress_callback=update_item_progress)
+            DATABASE.insert_import(result_to_record(result))
+            job.results.append(result)
+            job.completed_units = item_start + item_units
+        job.current_item = ""
+        job.completed_units = job.total_units
+        job.state = "done"
+    except Exception as exc:
+        job.error = str(exc)
+        job.state = "failed"
+
+
+def _import_request_units(import_request: ImportRequest) -> int:
+    if import_request.action == "copy":
+        try:
+            return max(1, import_request.source_path.stat().st_size)
+        except OSError:
+            return 1
+    return 1
+
+
+def _get_import_job(job_id: str) -> ImportJob:
+    with IMPORT_JOBS_LOCK:
+        job = IMPORT_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Import job not found")
+    return job
 
 
 def _browse_entry_sources(root: Path, entries: list[object]) -> dict[str, list[Path]]:

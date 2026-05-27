@@ -5,6 +5,7 @@ import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from tvsorter.naming import destination_path, film_destination_path
 
@@ -39,6 +40,9 @@ class ImportResult:
     error: str | None = None
 
 
+ProgressCallback = Callable[[int, int], None]
+
+
 def preview_import(request: ImportRequest) -> ImportResult:
     output_path = _build_destination(request)
     final_path = _apply_conflict_policy(output_path, request.conflict_policy)
@@ -46,7 +50,7 @@ def preview_import(request: ImportRequest) -> ImportResult:
     return ImportResult(request=request, output_path=output_path, final_path=final_path, result=result)
 
 
-def execute_import(request: ImportRequest) -> ImportResult:
+def execute_import(request: ImportRequest, progress_callback: ProgressCallback | None = None) -> ImportResult:
     output_path = _build_destination(request)
     try:
         final_path = _apply_conflict_policy(output_path, request.conflict_policy)
@@ -65,8 +69,10 @@ def execute_import(request: ImportRequest) -> ImportResult:
             final_path.unlink()
         if request.action == "hardlink":
             os.link(request.source_path, final_path)
+            if progress_callback:
+                progress_callback(1, 1)
         elif request.action == "copy":
-            shutil.copy2(request.source_path, final_path)
+            _copy_with_progress(request.source_path, final_path, progress_callback)
         else:
             return ImportResult(request, output_path, final_path, "failed", f"Unsupported action: {request.action}")
     except OSError as exc:
@@ -157,6 +163,23 @@ def _indexed_path(path: Path) -> Path:
         if not candidate.exists():
             return candidate
     raise FileExistsError(f"No available indexed destination for: {path}")
+
+
+def _copy_with_progress(source: Path, destination: Path, progress_callback: ProgressCallback | None = None) -> None:
+    total = source.stat().st_size
+    copied = 0
+    with source.open("rb") as source_file, destination.open("wb") as destination_file:
+        while True:
+            chunk = source_file.read(1024 * 1024 * 8)
+            if not chunk:
+                break
+            destination_file.write(chunk)
+            copied += len(chunk)
+            if progress_callback:
+                progress_callback(copied, total)
+    shutil.copystat(source, destination)
+    if progress_callback:
+        progress_callback(total, total)
 
 
 def _format_os_error(exc: OSError, destination: Path) -> str:

@@ -267,6 +267,7 @@ The app should also offer an output rescan action so files added, removed, or ch
 - Allow manual match correction.
 - Allow media type selection.
 - Allow quality correction.
+- Wrap long filenames and paths so they cannot force the page wider than the viewport.
 
 ### Import Preview
 
@@ -275,6 +276,7 @@ The app should also offer an output rescan action so files added, removed, or ch
 - Show selected action.
 - Show conflict status.
 - Allow final validation before import.
+- Wrap long source and destination paths so they remain readable without breaking the layout.
 
 ### Import Results
 
@@ -283,10 +285,13 @@ The app should also offer an output rescan action so files added, removed, or ch
 - Allow filtering visible rows by state.
 - Show permission failures with actionable output-mount guidance.
 - Do not include navigation shortcuts that distract from reviewing results.
+- Wrap long source and destination paths so import results stay within the panel.
 
 ### Long Operations
 
 - Show an indeterminate progress indicator when an import, copy, match, preview, or other UI operation takes longer than two seconds.
+- During real imports, use a background import job and show determinate progress when possible, including the current filename and overall percentage.
+- Copy operations should report byte-level progress; hardlinks and other instant actions may report item-level progress.
 
 ### Library
 

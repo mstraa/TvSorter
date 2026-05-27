@@ -181,3 +181,5 @@ Film Name (Year) - Quality.ext
 - Moved status changes to a selected-items browser action, applied status changes recursively to selected folders, made browser rows clickable, and added a persistent dark theme toggle.
 - Added a delayed progress indicator for operations that run longer than two seconds and removed the Import Results "Open Library" shortcut.
 - Changed Film imports to copy/hardlink directly into the Film output root instead of creating one folder per movie.
+- Added background import jobs with real copy progress, current item display, and determinate import percentage polling.
+- Hardened long filename/path wrapping in match, preview, and import result views so paths cannot push panels off-screen.

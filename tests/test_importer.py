@@ -33,6 +33,22 @@ def test_copy_import_leaves_source_untouched(tmp_path: Path) -> None:
     assert result.final_path.read_text() == "episode"
 
 
+def test_copy_import_reports_progress(tmp_path: Path) -> None:
+    source = tmp_path / "source.mkv"
+    source.write_bytes(b"episode-data")
+    output_root = tmp_path / "library"
+    progress = []
+
+    result = execute_import(
+        _request(source, output_root, "copy"),
+        progress_callback=lambda copied, total: progress.append((copied, total)),
+    )
+
+    assert result.result == "imported"
+    assert progress
+    assert progress[-1] == (len(b"episode-data"), len(b"episode-data"))
+
+
 def test_skip_conflict_does_not_overwrite(tmp_path: Path) -> None:
     source = tmp_path / "source.mkv"
     source.write_text("new")

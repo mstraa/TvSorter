@@ -16,8 +16,8 @@
     <tbody>
     {% for result in results %}
       <tr class="state-row state-{{ result.result }}" data-state="{{ result.result }}">
-        <td>{{ result.request.source_path }}</td>
-        <td>{{ result.final_path }}</td>
+        <td class="path-cell">{{ result.request.source_path }}</td>
+        <td class="path-cell">{{ result.final_path }}</td>
         <td><span class="state-badge state-{{ result.result }}">{{ result.result }}</span></td>
         <td class="error-cell">{{ result.error or "" }}</td>
       </tr>

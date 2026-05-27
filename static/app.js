@@ -8,6 +8,12 @@ document.addEventListener("submit", (event) => {
   if (submitter?.dataset?.noProgress === "true") {
     return;
   }
+  const action = submitter?.getAttribute("formaction") || event.target.getAttribute("action") || "";
+  if (action.includes("/imports")) {
+    event.preventDefault();
+    startImportJob(event.target, submitter);
+    return;
+  }
   const label = progressLabelForSubmitter(submitter);
   startDelayedProgress(label);
 });
@@ -295,6 +301,55 @@ async function applySelectedSourceStatus(button) {
   }
 }
 
+async function startImportJob(form, submitter) {
+  const formData = new FormData(form);
+  if (submitter) {
+    submitter.disabled = true;
+  }
+  startDelayedProgress("Starting import...", true);
+  try {
+    const response = await fetch("/api/import-jobs", {
+      method: "POST",
+      body: formData,
+    });
+    if (!response.ok) {
+      alert("Could not start import.");
+      stopDelayedProgress();
+      return;
+    }
+    const job = await response.json();
+    await pollImportJob(job.id);
+  } finally {
+    if (submitter) {
+      submitter.disabled = false;
+    }
+  }
+}
+
+async function pollImportJob(jobId) {
+  while (true) {
+    const response = await fetch(`/api/import-jobs/${encodeURIComponent(jobId)}`);
+    if (!response.ok) {
+      stopDelayedProgress();
+      alert("Could not read import progress.");
+      return;
+    }
+    const job = await response.json();
+    updateProgress(job);
+    if (job.state === "done") {
+      stopDelayedProgress();
+      window.location.href = `/import-jobs/${encodeURIComponent(jobId)}/results`;
+      return;
+    }
+    if (job.state === "failed") {
+      stopDelayedProgress();
+      alert(job.error || "Import failed.");
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+}
+
 function initializeTheme() {
   const savedTheme = localStorage.getItem("tvsorter-theme");
   const preferredTheme = window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
@@ -333,15 +388,14 @@ function progressLabelForSubmitter(submitter) {
   return "Working...";
 }
 
-function startDelayedProgress(label) {
+function startDelayedProgress(label, determinate = false) {
   stopDelayedProgress();
+  setProgressState({ percent: determinate ? 0 : null, label, currentItem: "" });
   progressTimer = window.setTimeout(() => {
     const overlay = document.querySelector("[data-progress-overlay]");
-    const labelElement = document.querySelector("[data-progress-label]");
-    if (!overlay || !labelElement) {
+    if (!overlay) {
       return;
     }
-    labelElement.textContent = label;
     overlay.hidden = false;
     progressVisible = true;
   }, 2000);
@@ -363,3 +417,30 @@ function stopDelayedProgress() {
 
 window.startDelayedProgress = startDelayedProgress;
 window.stopDelayedProgress = stopDelayedProgress;
+
+function updateProgress(job) {
+  const label = job.current_item ? `Importing ${job.current_item}` : "Importing...";
+  setProgressState({ percent: job.percent, label, currentItem: job.current_item || "" });
+}
+
+function setProgressState({ percent, label, currentItem }) {
+  const overlay = document.querySelector("[data-progress-overlay]");
+  const labelElement = document.querySelector("[data-progress-label]");
+  const itemElement = document.querySelector("[data-progress-item]");
+  const percentElement = document.querySelector("[data-progress-percent]");
+  const bar = document.querySelector("[data-progress-bar]");
+  if (!overlay || !labelElement || !itemElement || !percentElement || !bar) {
+    return;
+  }
+  labelElement.textContent = label;
+  itemElement.textContent = currentItem || "";
+  if (typeof percent === "number") {
+    overlay.dataset.progressMode = "determinate";
+    percentElement.textContent = `${Math.max(0, Math.min(100, percent))}%`;
+    bar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+  } else {
+    overlay.dataset.progressMode = "indeterminate";
+    percentElement.textContent = "";
+    bar.style.width = "";
+  }
+}

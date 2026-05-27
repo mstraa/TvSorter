@@ -258,6 +258,7 @@ td {
   padding: 9px;
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
 }
 
 th {
@@ -269,11 +270,20 @@ th {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 14px;
+  min-width: 0;
+  min-inline-size: 0;
+  max-width: 100%;
 }
 
 .match-row legend {
+  max-width: 100%;
   padding: 0 6px;
   font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.grid > label {
+  min-width: 0;
 }
 
 .muted {
@@ -429,6 +439,13 @@ th {
   color: var(--error);
 }
 
+.path-line,
+.path-cell,
+.match-row .muted {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .folder-dialog {
   width: min(760px, calc(100vw - 28px));
   border: 1px solid var(--border);
@@ -537,6 +554,12 @@ th {
   font-weight: 700;
 }
 
+.progress-item {
+  min-height: 18px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 .progress-track {
   height: 10px;
   overflow: hidden;
@@ -549,7 +572,20 @@ th {
   height: 100%;
   border-radius: inherit;
   background: var(--accent);
+}
+
+.progress-overlay[data-progress-mode="indeterminate"] .progress-bar {
   animation: progress-slide 1.2s ease-in-out infinite;
+}
+
+.progress-overlay[data-progress-mode="determinate"] .progress-bar {
+  transition: width 180ms ease;
+}
+
+.progress-percent {
+  color: var(--muted);
+  font-weight: 700;
+  text-align: right;
 }
 
 @keyframes progress-slide {
