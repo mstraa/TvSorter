@@ -1,5 +1,17 @@
 initializeTheme();
 
+let progressTimer = null;
+let progressVisible = false;
+
+document.addEventListener("submit", (event) => {
+  const submitter = event.submitter;
+  if (submitter?.dataset?.noProgress === "true") {
+    return;
+  }
+  const label = progressLabelForSubmitter(submitter);
+  startDelayedProgress(label);
+});
+
 document.addEventListener("change", (event) => {
   const browseCheckbox = event.target.closest('.browse-row input[name="selected"]');
   if (browseCheckbox) {
@@ -127,18 +139,23 @@ folderPathInput?.addEventListener("keydown", async (event) => {
 async function loadFolder(path) {
   setFolderError("");
   folderList.replaceChildren();
-  const response = await fetch(`/api/folders?path=${encodeURIComponent(path || "/")}`);
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    setFolderError(payload.detail || "Could not open folder");
-    return;
-  }
+  startDelayedProgress("Opening folder...");
+  try {
+    const response = await fetch(`/api/folders?path=${encodeURIComponent(path || "/")}`);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      setFolderError(payload.detail || "Could not open folder");
+      return;
+    }
 
-  const payload = await response.json();
-  folderPathInput.value = payload.path;
-  folderPickerParent = payload.parent;
-  renderFolderRoots(payload.roots);
-  renderFolderList(payload.folders);
+    const payload = await response.json();
+    folderPathInput.value = payload.path;
+    folderPickerParent = payload.parent;
+    renderFolderRoots(payload.roots);
+    renderFolderList(payload.folders);
+  } finally {
+    stopDelayedProgress();
+  }
 }
 
 function renderFolderRoots(roots) {
@@ -261,16 +278,21 @@ async function applySelectedSourceStatus(button) {
     formData.append("selected", relativePath);
   }
   button.disabled = true;
-  const response = await fetch("/api/source-status", {
-    method: "POST",
-    body: formData,
-  });
-  button.disabled = false;
-  if (!response.ok) {
-    alert("Could not update status.");
-    return;
+  startDelayedProgress("Updating status...");
+  try {
+    const response = await fetch("/api/source-status", {
+      method: "POST",
+      body: formData,
+    });
+    if (!response.ok) {
+      alert("Could not update status.");
+      return;
+    }
+    window.location.reload();
+  } finally {
+    button.disabled = false;
+    stopDelayedProgress();
   }
-  window.location.reload();
 }
 
 function initializeTheme() {
@@ -292,3 +314,52 @@ function setTheme(theme) {
     button.setAttribute("aria-label", `Switch to ${theme === "dark" ? "light" : "dark"} theme`);
   }
 }
+
+function progressLabelForSubmitter(submitter) {
+  if (!submitter) {
+    return "Working...";
+  }
+  const action = submitter.getAttribute("formaction") || submitter.form?.getAttribute("action") || "";
+  const label = submitter.textContent.trim();
+  if (action.includes("/imports") || label === "Import") {
+    return "Importing...";
+  }
+  if (action.includes("/preview") || label === "Preview") {
+    return "Building preview...";
+  }
+  if (action.includes("/match") || label === "Match Selected") {
+    return "Matching metadata...";
+  }
+  return "Working...";
+}
+
+function startDelayedProgress(label) {
+  stopDelayedProgress();
+  progressTimer = window.setTimeout(() => {
+    const overlay = document.querySelector("[data-progress-overlay]");
+    const labelElement = document.querySelector("[data-progress-label]");
+    if (!overlay || !labelElement) {
+      return;
+    }
+    labelElement.textContent = label;
+    overlay.hidden = false;
+    progressVisible = true;
+  }, 2000);
+}
+
+function stopDelayedProgress() {
+  if (progressTimer) {
+    window.clearTimeout(progressTimer);
+    progressTimer = null;
+  }
+  if (progressVisible) {
+    const overlay = document.querySelector("[data-progress-overlay]");
+    if (overlay) {
+      overlay.hidden = true;
+    }
+    progressVisible = false;
+  }
+}
+
+window.startDelayedProgress = startDelayedProgress;
+window.stopDelayedProgress = stopDelayedProgress;

@@ -21,5 +21,13 @@
   <main class="page">
     {% block content %}{% endblock %}
   </main>
+  <div class="progress-overlay" data-progress-overlay hidden>
+    <div class="progress-panel" role="status" aria-live="polite">
+      <div class="progress-label" data-progress-label>Working...</div>
+      <div class="progress-track" aria-hidden="true">
+        <div class="progress-bar"></div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

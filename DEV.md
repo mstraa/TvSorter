@@ -179,3 +179,4 @@ Film Name (Year)/Film Name (Year) - Quality.ext
 - Added latest import status badges to the input browser for video source files already processed by TvSorter.
 - Added Browse status filters, an "Only no status" view, and manual per-source status overrides stored separately from import history.
 - Moved status changes to a selected-items browser action, applied status changes recursively to selected folders, made browser rows clickable, and added a persistent dark theme toggle.
+- Added a delayed progress indicator for operations that run longer than two seconds and removed the Import Results "Open Library" shortcut.

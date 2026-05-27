@@ -282,6 +282,11 @@ The app should also offer an output rescan action so files added, removed, or ch
 - Color rows by state so failed, skipped, preview, conflict, and imported rows are easy to scan.
 - Allow filtering visible rows by state.
 - Show permission failures with actionable output-mount guidance.
+- Do not include navigation shortcuts that distract from reviewing results.
+
+### Long Operations
+
+- Show an indeterminate progress indicator when an import, copy, match, preview, or other UI operation takes longer than two seconds.
 
 ### Library
 
