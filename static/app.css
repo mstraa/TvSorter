@@ -322,6 +322,24 @@ th {
   overflow-wrap: anywhere;
 }
 
+.manual-match {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr) auto auto;
+  align-items: end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.manual-match label,
+.manual-match select {
+  min-width: 0;
+}
+
+.manual-search-status {
+  align-self: center;
+  overflow-wrap: anywhere;
+}
+
 .grid > label {
   min-width: 0;
 }
@@ -729,6 +747,11 @@ th {
   .page {
     width: min(100vw - 20px, 1200px);
     margin: 10px auto;
+  }
+
+  .manual-match {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 
   table {

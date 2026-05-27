@@ -128,6 +128,7 @@ Film output root:
 10. App shows proposed matches.
 11. User may manually override:
    - provider result
+   - metadata search query, with an option to apply the selected show/movie to one row or all rows in the current match queue
    - show title
    - show year
    - season number, episode number, and episode title for TV/Anime

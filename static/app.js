@@ -45,11 +45,7 @@ document.addEventListener("change", (event) => {
   }
 
   const row = select.closest(".match-row");
-  const [provider, providerId, title, year] = select.value.split("|");
-  row.querySelector(".provider-input").value = provider || "";
-  row.querySelector(".provider-id-input").value = providerId || "";
-  row.querySelector(".show-title-input").value = title || "";
-  row.querySelector(".show-year-input").value = year || "";
+  applyCandidateToRow(row, optionToCandidate(select.selectedOptions[0]));
 });
 
 const folderDialog = document.getElementById("folder-picker");
@@ -92,6 +88,24 @@ document.addEventListener("click", async (event) => {
   const progressCancelButton = event.target.closest("[data-progress-cancel]");
   if (progressCancelButton) {
     await cancelActiveImport(progressCancelButton);
+    return;
+  }
+
+  const matchSearchButton = event.target.closest("[data-match-search]");
+  if (matchSearchButton) {
+    await searchMatchCandidates(matchSearchButton);
+    return;
+  }
+
+  const matchApplyRowButton = event.target.closest("[data-match-apply-row]");
+  if (matchApplyRowButton) {
+    await applyManualMatch(matchApplyRowButton, false);
+    return;
+  }
+
+  const matchApplyAllButton = event.target.closest("[data-match-apply-all]");
+  if (matchApplyAllButton) {
+    await applyManualMatch(matchApplyAllButton, true);
     return;
   }
 
@@ -257,6 +271,148 @@ function updateBrowseStatusRows(select) {
   document.querySelectorAll(".browse-row").forEach((row) => {
     row.hidden = selectedState !== "all" && row.dataset.browseStatus !== selectedState;
   });
+}
+
+async function searchMatchCandidates(button) {
+  const form = button.closest("form");
+  const container = button.closest("[data-manual-match]");
+  const queryInput = container.querySelector(".manual-search-query");
+  const status = container.querySelector(".manual-search-status");
+  const mediaType = form.querySelector('input[name="media_type"]').value;
+  const query = queryInput.value.trim();
+  if (!query) {
+    status.textContent = "Enter a title to search.";
+    return;
+  }
+
+  button.disabled = true;
+  status.textContent = "Searching...";
+  startDelayedProgress("Searching metadata...");
+  try {
+    const response = await fetch(`/api/search?media_type=${encodeURIComponent(mediaType)}&q=${encodeURIComponent(query)}`);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      status.textContent = payload.detail || "Search failed.";
+      return;
+    }
+    const payload = await response.json();
+    renderManualCandidates(container, payload.results || []);
+  } finally {
+    button.disabled = false;
+    stopDelayedProgress();
+  }
+}
+
+function renderManualCandidates(container, candidates) {
+  const candidateSelect = container.querySelector(".manual-candidate-select");
+  const status = container.querySelector(".manual-search-status");
+  const applyRowButton = container.querySelector("[data-match-apply-row]");
+  const applyAllButton = container.querySelector("[data-match-apply-all]");
+  candidateSelect.replaceChildren();
+  if (!candidates.length) {
+    candidateSelect.hidden = true;
+    applyRowButton.hidden = true;
+    applyAllButton.hidden = true;
+    status.textContent = "No matches found.";
+    return;
+  }
+
+  for (const candidate of candidates) {
+    const option = document.createElement("option");
+    option.value = candidate.provider_id || "";
+    option.dataset.provider = candidate.provider || "";
+    option.dataset.providerId = candidate.provider_id || "";
+    option.dataset.title = candidate.title || "";
+    option.dataset.year = candidate.year || "";
+    const year = candidate.year ? ` (${candidate.year})` : "";
+    const provider = candidate.provider ? ` - ${candidate.provider}` : "";
+    option.textContent = `${candidate.title || "Unknown"}${year}${provider}`;
+    candidateSelect.append(option);
+  }
+
+  candidateSelect.hidden = false;
+  applyRowButton.hidden = false;
+  applyAllButton.hidden = false;
+  status.textContent = `${candidates.length} match${candidates.length === 1 ? "" : "es"} found.`;
+}
+
+async function applyManualMatch(button, applyAllRows) {
+  const form = button.closest("form");
+  const container = button.closest("[data-manual-match]");
+  const select = container.querySelector(".manual-candidate-select");
+  const status = container.querySelector(".manual-search-status");
+  const candidate = optionToCandidate(select.selectedOptions[0]);
+  if (!candidate) {
+    status.textContent = "Choose a match first.";
+    return;
+  }
+
+  const rows = applyAllRows ? Array.from(form.querySelectorAll(".match-row")) : [button.closest(".match-row")];
+  for (const row of rows) {
+    applyCandidateToRow(row, candidate);
+  }
+  status.textContent = applyAllRows ? `Applied to ${rows.length} rows.` : "Applied to this row.";
+
+  const mediaType = form.querySelector('input[name="media_type"]').value;
+  if (mediaType !== "film" && candidate.providerId) {
+    await applyEpisodeTitles(rows, mediaType, candidate.providerId);
+  }
+}
+
+function optionToCandidate(option) {
+  if (!option) {
+    return null;
+  }
+  return {
+    provider: option.dataset.provider || "",
+    providerId: option.dataset.providerId || "",
+    title: option.dataset.title || "",
+    year: option.dataset.year || "",
+  };
+}
+
+function applyCandidateToRow(row, candidate) {
+  if (!row || !candidate) {
+    return;
+  }
+  row.querySelector(".provider-input").value = candidate.provider || "";
+  row.querySelector(".provider-id-input").value = candidate.providerId || "";
+  row.querySelector(".show-title-input").value = candidate.title || "";
+  row.querySelector(".show-year-input").value = candidate.year || "";
+}
+
+async function applyEpisodeTitles(rows, mediaType, providerShowId) {
+  startDelayedProgress("Loading episodes...");
+  try {
+    const response = await fetch(
+      `/api/episodes?media_type=${encodeURIComponent(mediaType)}&provider_show_id=${encodeURIComponent(providerShowId)}`,
+    );
+    if (!response.ok) {
+      return;
+    }
+    const payload = await response.json();
+    const episodes = payload.results || [];
+    for (const row of rows) {
+      applyEpisodeTitle(row, episodes);
+    }
+  } finally {
+    stopDelayedProgress();
+  }
+}
+
+function applyEpisodeTitle(row, episodes) {
+  const seasonInput = row.querySelector(".season-number-input");
+  const episodeInput = row.querySelector(".episode-number-input");
+  const titleInput = row.querySelector(".episode-title-input");
+  if (!seasonInput || !episodeInput || !titleInput) {
+    return;
+  }
+  const season = Number(seasonInput.value);
+  const episodeNumber = Number(episodeInput.value);
+  const match = episodes.find((episode) => Number(episode.season) === season && Number(episode.episode) === episodeNumber);
+  if (match?.title) {
+    titleInput.value = match.title;
+  }
 }
 
 async function applySelectedSourceStatus(button) {

@@ -358,11 +358,18 @@ def history_page(request: Request) -> HTMLResponse:
 
 @app.get("/api/search")
 async def api_search(media_type: str, q: str) -> dict[str, object]:
-    return {"results": [candidate.__dict__ for candidate in await PROVIDERS.search(media_type, q)]}
+    if media_type not in MEDIA_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid media type")
+    query = q.strip()
+    if not query:
+        return {"results": []}
+    return {"results": [candidate.__dict__ for candidate in await PROVIDERS.search(media_type, query)]}
 
 
 @app.get("/api/episodes")
 async def api_episodes(media_type: str, provider_show_id: str) -> dict[str, object]:
+    if media_type not in MEDIA_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid media type")
     return {
         "results": [
             candidate.__dict__

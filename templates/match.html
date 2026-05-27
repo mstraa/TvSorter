@@ -48,11 +48,22 @@
               <input name="episode_number" type="hidden" value="0">
               <input name="episode_title" type="hidden" value="Film">
             {% else %}
-              <label>Season <input name="season_number" type="number" min="0" value="{{ row.parsed.season }}"></label>
-              <label>Episode <input name="episode_number" type="number" min="0" value="{{ row.parsed.episode }}"></label>
-              <label>Episode title <input name="episode_title" value="{{ row.episode_title }}"></label>
+              <label>Season <input class="season-number-input" name="season_number" type="number" min="0" value="{{ row.parsed.season }}"></label>
+              <label>Episode <input class="episode-number-input" name="episode_number" type="number" min="0" value="{{ row.parsed.episode }}"></label>
+              <label>Episode title <input class="episode-title-input" name="episode_title" value="{{ row.episode_title }}"></label>
             {% endif %}
             <label>Quality <input name="quality" value="{{ row.parsed.quality }}"></label>
+          </div>
+          <div class="manual-match" data-manual-match>
+            <label>
+              Search metadata
+              <input class="manual-search-query" type="search" value="{{ row.show_title }}">
+            </label>
+            <button class="secondary-button" type="button" data-match-search>Search</button>
+            <select class="manual-candidate-select" hidden></select>
+            <button class="secondary-button" type="button" data-match-apply-row hidden>Apply to row</button>
+            <button class="secondary-button" type="button" data-match-apply-all hidden>Apply to all rows</button>
+            <span class="manual-search-status muted" aria-live="polite"></span>
           </div>
           {% if row.candidates %}
             <details>
@@ -62,7 +73,11 @@
                 <select class="candidate-select">
                   {% for candidate in row.candidates %}
                     <option
-                      value="{{ candidate.provider }}|{{ candidate.provider_id }}|{{ candidate.title }}|{{ candidate.year or '' }}"
+                      value="{{ loop.index0 }}"
+                      data-provider="{{ candidate.provider }}"
+                      data-provider-id="{{ candidate.provider_id }}"
+                      data-title="{{ candidate.title }}"
+                      data-year="{{ candidate.year or '' }}"
                       {% if loop.first %}selected{% endif %}
                     >
                       {{ candidate.title }}{% if candidate.year %} ({{ candidate.year }}){% endif %} - {{ candidate.provider }}
