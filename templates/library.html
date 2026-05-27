@@ -13,11 +13,10 @@
         <td>{{ file.media_type }}</td>
         <td>{{ file.output_path }}</td>
         <td>{{ "yes" if file.present else "missing" }}</td>
-        <td>{{ file.size or "" }}</td>
+        <td>{{ file.size | filesize }}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
 </section>
 {% endblock %}
-

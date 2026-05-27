@@ -476,11 +476,16 @@ function progressDetail(job) {
 
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes) || bytes <= 0) {
-    return "0 B";
+    return "0 o";
   }
-  const units = ["B", "KB", "MB", "GB", "TB"];
+  const units = ["o", "Ko", "Mo", "Go", "To"];
   const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / (1024 ** exponent);
-  const precision = value >= 10 || exponent === 0 ? 0 : 1;
-  return `${value.toFixed(precision)} ${units[exponent]}`;
+  const precision = exponent <= 2 ? 0 : 2;
+  let formatted = value.toFixed(precision);
+  if (formatted.includes(".")) {
+    formatted = formatted.replace(/0+$/, "").replace(/\.$/, "");
+  }
+  formatted = formatted.replace(".", ",");
+  return `${formatted} ${units[exponent]}`;
 }

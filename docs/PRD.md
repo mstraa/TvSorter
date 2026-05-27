@@ -251,6 +251,7 @@ The app should also offer an output rescan action so files added, removed, or ch
 
 - Browse configured input roots.
 - Show files and folders.
+- Show file sizes in a human-readable format such as `22 Mo` or `1,34 Go`.
 - Select one or more files/folders.
 - Expand selected folders recursively into video files.
 - Keep root/type/action controls visible while scrolling long folders.

@@ -16,6 +16,7 @@ from fastapi.templating import Jinja2Templates
 from tvsorter.config import load_config
 from tvsorter.db import Database
 from tvsorter.filesystem import expand_source_files, expand_video_files, is_relative_to, list_directory
+from tvsorter.formatting import human_file_size
 from tvsorter.importer import ImportRequest, ImportResult, execute_import, preview_import, result_to_record
 from tvsorter.library import rescan_outputs
 from tvsorter.naming import destination_path, film_destination_path
@@ -88,6 +89,7 @@ IMPORT_JOBS_LOCK = threading.Lock()
 app = FastAPI(title="TvSorter")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.globals["asset_version"] = ASSET_VERSION
+templates.env.filters["filesize"] = human_file_size
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 

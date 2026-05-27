@@ -92,7 +92,7 @@
                 {% endif %}
               </td>
               <td>{{ "folder" if entry.is_dir else ("video" if entry.is_video else "file") }}</td>
-              <td>{{ entry.size or "" }}</td>
+              <td>{{ entry.size | filesize }}</td>
             </tr>
           {% endfor %}
           </tbody>

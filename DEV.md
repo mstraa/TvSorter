@@ -187,3 +187,4 @@ Film Name (Year) - Quality.ext
 - Expanded import progress snapshots with item counts, current copy bytes, current-file percentage, and versioned static asset URLs to avoid stale browser JavaScript after updates.
 - Refined the progress panel layout so the percentage stays inside the panel and long filenames/details wrap without duplicating the header.
 - Changed manual browse status updates to apply to any selected source file, including non-video files, and improved the frontend alert to show backend error details.
+- Added human-readable file size formatting with French-style units and comma decimals in Browse, Library, and import progress details.
