@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 
 from tvsorter.config import load_config
 from tvsorter.db import Database
-from tvsorter.filesystem import expand_video_files, is_relative_to, list_directory
+from tvsorter.filesystem import expand_source_files, expand_video_files, is_relative_to, list_directory
 from tvsorter.importer import ImportRequest, ImportResult, execute_import, preview_import, result_to_record
 from tvsorter.library import rescan_outputs
 from tvsorter.naming import destination_path, film_destination_path
@@ -372,7 +372,7 @@ def api_source_status(
 ) -> dict[str, object]:
     sources = _status_update_sources(root_id, selected, source_path)
     if not sources:
-        raise HTTPException(status_code=400, detail="No video files selected")
+        raise HTTPException(status_code=400, detail="No files selected")
     if status == "auto":
         DATABASE.set_source_status_overrides(sources, None)
         return {"status": "auto", "updated": len(sources)}
@@ -669,12 +669,10 @@ def _get_import_job(job_id: str) -> ImportJob:
 def _browse_entry_sources(root: Path, entries: list[object]) -> dict[str, list[Path]]:
     sources = {}
     for entry in entries:
-        if getattr(entry, "is_video"):
-            sources[getattr(entry, "relative_path")] = [getattr(entry, "absolute_path").resolve()]
-        elif getattr(entry, "is_dir"):
-            sources[getattr(entry, "relative_path")] = expand_video_files(root, [getattr(entry, "relative_path")])
+        if getattr(entry, "is_dir"):
+            sources[getattr(entry, "relative_path")] = expand_source_files(root, [getattr(entry, "relative_path")])
         else:
-            sources[getattr(entry, "relative_path")] = []
+            sources[getattr(entry, "relative_path")] = [getattr(entry, "absolute_path").resolve()]
     return sources
 
 
@@ -746,7 +744,7 @@ def _status_update_sources(
     root = DATABASE.get_input_root(root_id)
     if not root:
         raise HTTPException(status_code=404, detail="Input root not found")
-    return expand_video_files(Path(root["path"]), selected or [])
+    return expand_source_files(Path(root["path"]), selected or [])
 
 
 def _settings_checks(input_roots: list, output_roots: dict[str, Path]) -> list[dict[str, object]]:

@@ -291,7 +291,8 @@ async function applySelectedSourceStatus(button) {
       body: formData,
     });
     if (!response.ok) {
-      alert("Could not update status.");
+      const payload = await response.json().catch(() => ({}));
+      alert(payload.detail || "Could not update status.");
       return;
     }
     window.location.reload();

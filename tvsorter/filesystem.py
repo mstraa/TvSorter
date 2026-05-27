@@ -70,13 +70,21 @@ def list_directory(root: Path, relative_path: str = "") -> list[BrowserEntry]:
 
 
 def expand_video_files(root: Path, relative_paths: list[str]) -> list[Path]:
+    return _expand_files(root, relative_paths, video_only=True)
+
+
+def expand_source_files(root: Path, relative_paths: list[str]) -> list[Path]:
+    return _expand_files(root, relative_paths, video_only=False)
+
+
+def _expand_files(root: Path, relative_paths: list[str], video_only: bool) -> list[Path]:
     files: list[Path] = []
     seen: set[Path] = set()
     for relative_path in relative_paths:
         target = resolve_under_root(root, relative_path)
         candidates = target.rglob("*") if target.is_dir() else [target]
         for candidate in candidates:
-            if candidate.is_file() and is_video_file(candidate):
+            if candidate.is_file() and (not video_only or is_video_file(candidate)):
                 resolved = candidate.resolve()
                 if resolved not in seen:
                     files.append(resolved)
@@ -86,4 +94,3 @@ def expand_video_files(root: Path, relative_paths: list[str]) -> list[Path]:
 
 def is_video_file(path: Path) -> bool:
     return path.is_file() and path.suffix.lower() in VIDEO_EXTENSIONS
-
