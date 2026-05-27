@@ -34,6 +34,7 @@ The app lets a user browse mounted input folders, select files or folders, ident
 - Input and output folders are mounted into the LXC by the host.
 - The web app is available only on the LAN.
 - The app process should run as a non-root user where possible.
+- Existing host media permissions should not be changed by TvSorter; the LXC service identity should be matched to the existing writable UID/GID or group when mounts are shared with other containers.
 - Hardlinks only work when source and destination are on the same filesystem/device. If hardlinking fails, the UI must explain the failure and let the user copy instead.
 
 ## Recommended Stack

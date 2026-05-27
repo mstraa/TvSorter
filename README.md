@@ -61,3 +61,12 @@ curl -fsSL https://raw.githubusercontent.com/mstraa/TvSorter/main/scripts/update
 chmod 0755 /usr/local/bin/update-tvsorter
 ln -sf /usr/local/bin/update-tvsorter /usr/local/bin/update
 ```
+
+If output mounts are shared with another LXC, keep the existing media permissions and match TvSorter to the mount identity instead:
+
+```sh
+stat -c '%u:%g %A %n' /mnt/data/Movies
+tvsorter-access --path /mnt/data/Movies --mode group
+```
+
+Use `--mode owner` instead if the mount is writable only by its owner.

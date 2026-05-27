@@ -487,6 +487,7 @@ python3 -m venv /opt/tvsorter/.venv
 /opt/tvsorter/.venv/bin/python -m pip install --upgrade pip
 /opt/tvsorter/.venv/bin/python -m pip install -e /opt/tvsorter
 
+install -m 0755 /opt/tvsorter/scripts/tvsorter-access.sh /usr/local/bin/tvsorter-access
 curl -fsSL "$update_url" -o /usr/local/bin/update-tvsorter
 chmod 0755 /usr/local/bin/update-tvsorter
 ln -sf /usr/local/bin/update-tvsorter /usr/local/bin/update

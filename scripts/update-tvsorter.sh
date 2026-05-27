@@ -80,6 +80,7 @@ fi
 log "Updating Python dependencies"
 "$APP_DIR/.venv/bin/python" -m pip install --upgrade pip
 "$APP_DIR/.venv/bin/python" -m pip install -e "$APP_DIR"
+install -m 0755 "$APP_DIR/scripts/tvsorter-access.sh" /usr/local/bin/tvsorter-access
 
 configure_autologin
 restart_getty_units

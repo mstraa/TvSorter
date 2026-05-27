@@ -81,6 +81,28 @@ Example paths:
 
 The service user needs read access to input roots and write access to TV/Anime/Film output roots.
 
+If the mounted folders are already managed by another LXC, do not change ownership or mode on the media folders. Instead, match TvSorter to the existing numeric identity that can already write.
+
+First inspect the mount inside the TvSorter LXC:
+
+```sh
+stat -c '%u:%g %A %n' /mnt/data/Movies
+```
+
+If the folder is group-writable, add TvSorter to a local group with the same numeric GID:
+
+```sh
+tvsorter-access --path /mnt/data/Movies --mode group
+```
+
+If only the folder owner can write, run `tvsorter.service` as a local user/group matching the mount owner UID/GID:
+
+```sh
+tvsorter-access --path /mnt/data/Movies --mode owner
+```
+
+`tvsorter-access` changes only local LXC users/groups, the systemd service override, and `/var/lib/tvsorter` ownership. It does not `chown` or `chmod` the mounted media folder.
+
 Hardlinks require source and output to be on the same filesystem. If they are mounted from different devices or datasets, use copy.
 
 ## systemd Unit

@@ -175,3 +175,4 @@ Film Name (Year)/Film Name (Year) - Quality.ext
 ### 2026-05-27
 
 - Added actionable permission-denied import errors, sticky input browser controls, and import result state coloring/filtering.
+- Added `tvsorter-access` helper for shared LXC media mounts so TvSorter can match an existing writable UID/GID or group without changing media folder permissions.
