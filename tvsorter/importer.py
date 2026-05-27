@@ -3,6 +3,7 @@ from __future__ import annotations
 import errno
 import os
 import shutil
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -50,7 +51,11 @@ def preview_import(request: ImportRequest) -> ImportResult:
     return ImportResult(request=request, output_path=output_path, final_path=final_path, result=result)
 
 
-def execute_import(request: ImportRequest, progress_callback: ProgressCallback | None = None) -> ImportResult:
+def execute_import(
+    request: ImportRequest,
+    progress_callback: ProgressCallback | None = None,
+    copy_rate_limit_mbps: float | None = None,
+) -> ImportResult:
     output_path = _build_destination(request)
     try:
         final_path = _apply_conflict_policy(output_path, request.conflict_policy)
@@ -72,7 +77,7 @@ def execute_import(request: ImportRequest, progress_callback: ProgressCallback |
             if progress_callback:
                 progress_callback(1, 1)
         elif request.action == "copy":
-            _copy_with_progress(request.source_path, final_path, progress_callback)
+            _copy_with_progress(request.source_path, final_path, progress_callback, copy_rate_limit_mbps)
         else:
             return ImportResult(request, output_path, final_path, "failed", f"Unsupported action: {request.action}")
     except OSError as exc:
@@ -165,18 +170,31 @@ def _indexed_path(path: Path) -> Path:
     raise FileExistsError(f"No available indexed destination for: {path}")
 
 
-def _copy_with_progress(source: Path, destination: Path, progress_callback: ProgressCallback | None = None) -> None:
+def _copy_with_progress(
+    source: Path,
+    destination: Path,
+    progress_callback: ProgressCallback | None = None,
+    copy_rate_limit_mbps: float | None = None,
+) -> None:
     total = source.stat().st_size
     copied = 0
+    started_at = time.monotonic()
+    chunk_size = 256 * 1024
+    bytes_per_second = copy_rate_limit_mbps * 1024 * 1024 if copy_rate_limit_mbps and copy_rate_limit_mbps > 0 else None
     with source.open("rb") as source_file, destination.open("wb") as destination_file:
         while True:
-            chunk = source_file.read(1024 * 1024 * 8)
+            chunk = source_file.read(chunk_size)
             if not chunk:
                 break
             destination_file.write(chunk)
             copied += len(chunk)
             if progress_callback:
                 progress_callback(copied, total)
+            if bytes_per_second:
+                expected_elapsed = copied / bytes_per_second
+                actual_elapsed = time.monotonic() - started_at
+                if expected_elapsed > actual_elapsed:
+                    time.sleep(expected_elapsed - actual_elapsed)
     shutil.copystat(source, destination)
     if progress_callback:
         progress_callback(total, total)

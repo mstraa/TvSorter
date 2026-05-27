@@ -120,6 +120,7 @@ def settings_page(request: Request) -> HTMLResponse:
             "tv_output_root": DATABASE.get_setting("tv_output_root", ""),
             "anime_output_root": DATABASE.get_setting("anime_output_root", ""),
             "film_output_root": DATABASE.get_setting("film_output_root", ""),
+            "copy_rate_limit_mbps": DATABASE.get_setting("copy_rate_limit_mbps", "15"),
             "checks": checks,
         },
     )
@@ -131,6 +132,7 @@ def save_settings(
     tv_output_root: Annotated[str, Form()] = "",
     anime_output_root: Annotated[str, Form()] = "",
     film_output_root: Annotated[str, Form()] = "",
+    copy_rate_limit_mbps: Annotated[str, Form()] = "15",
 ) -> RedirectResponse:
     roots = [_normalize_path(line) for line in input_roots.splitlines() if line.strip()]
     DATABASE.replace_input_roots(roots)
@@ -139,6 +141,7 @@ def save_settings(
         "anime_output_root", _normalize_path(anime_output_root) if anime_output_root.strip() else ""
     )
     DATABASE.set_setting("film_output_root", _normalize_path(film_output_root) if film_output_root.strip() else "")
+    DATABASE.set_setting("copy_rate_limit_mbps", _normalize_copy_rate_limit(copy_rate_limit_mbps))
     return RedirectResponse(url="/settings", status_code=303)
 
 
@@ -255,8 +258,9 @@ def run_imports(
         provider_show_id=provider_show_id,
     )
     results = []
+    copy_rate_limit_mbps = _copy_rate_limit_mbps()
     for request_model in import_requests:
-        result = execute_import(request_model)
+        result = execute_import(request_model, copy_rate_limit_mbps=copy_rate_limit_mbps)
         DATABASE.insert_import(result_to_record(result))
         results.append(result)
 
@@ -408,7 +412,7 @@ async def api_start_import_job(request: Request) -> dict[str, object]:
     )
     with IMPORT_JOBS_LOCK:
         IMPORT_JOBS[job.id] = job
-    threading.Thread(target=_run_import_job, args=(job,), daemon=True).start()
+    threading.Thread(target=_run_import_job, args=(job, _copy_rate_limit_mbps()), daemon=True).start()
     return job.snapshot()
 
 
@@ -609,7 +613,7 @@ def _build_import_requests(
     return requests
 
 
-def _run_import_job(job: ImportJob) -> None:
+def _run_import_job(job: ImportJob, copy_rate_limit_mbps: float | None = None) -> None:
     try:
         for index, import_request in enumerate(job.requests, start=1):
             with job.lock:
@@ -630,7 +634,11 @@ def _run_import_job(job: ImportJob) -> None:
                         return
                     job.completed_units = item_start + int((copied / total) * item_units)
 
-            result = execute_import(import_request, progress_callback=update_item_progress)
+            result = execute_import(
+                import_request,
+                progress_callback=update_item_progress,
+                copy_rate_limit_mbps=copy_rate_limit_mbps,
+            )
             DATABASE.insert_import(result_to_record(result))
             with job.lock:
                 job.results.append(result)
@@ -658,6 +666,24 @@ def _import_request_units(import_request: ImportRequest) -> int:
         except OSError:
             return 1
     return 1
+
+
+def _copy_rate_limit_mbps() -> float | None:
+    value = DATABASE.get_setting("copy_rate_limit_mbps", "15")
+    try:
+        limit = float(value or 0)
+    except ValueError:
+        return 15.0
+    return limit if limit > 0 else None
+
+
+def _normalize_copy_rate_limit(value: str) -> str:
+    try:
+        limit = float(value.replace(",", ".").strip() or 0)
+    except ValueError:
+        limit = 15.0
+    limit = max(0.0, min(limit, 1000.0))
+    return str(int(limit)) if limit.is_integer() else f"{limit:.2f}".rstrip("0").rstrip(".")
 
 
 def _get_import_job(job_id: str) -> ImportJob:

@@ -271,6 +271,41 @@ th {
   font-weight: 700;
 }
 
+.browse-table {
+  table-layout: fixed;
+}
+
+.browse-table .select-column {
+  width: 34px;
+}
+
+.browse-table .status-column {
+  width: 130px;
+}
+
+.browse-table .type-column {
+  width: 82px;
+}
+
+.browse-table .size-column {
+  width: 100px;
+}
+
+.browse-table th,
+.browse-table td {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.browse-name-cell {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.nowrap-cell {
+  white-space: nowrap;
+}
+
 .match-row {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -438,6 +473,7 @@ th {
   font-size: 13px;
   font-weight: 700;
   text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .error-cell {

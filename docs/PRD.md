@@ -245,6 +245,7 @@ The app should also offer an output rescan action so files added, removed, or ch
 - Configure TV output root.
 - Configure Anime output root.
 - Configure Film output root.
+- Configure copy speed limit in Mo/s, with a conservative default of 15 Mo/s to reduce Proxmox storage IO pressure during large copy batches.
 - Show basic permission/read-write checks.
 
 ### Input Browser
@@ -293,6 +294,7 @@ The app should also offer an output rescan action so files added, removed, or ch
 - Show an indeterminate progress indicator when an import, copy, match, preview, or other UI operation takes longer than two seconds.
 - During real imports, use a background import job and show determinate progress when possible, including the current filename and overall percentage.
 - Copy operations should report byte-level progress, current-file percentage, item counts, and total copied bytes; hardlinks and other instant actions may report item-level progress.
+- Copy operations should throttle throughput according to the configured copy speed limit; hardlinks are not throttled because they do not copy file bytes.
 - Browser static assets should be versioned so UI changes from an update are not hidden by cached JavaScript or CSS.
 
 ### Library

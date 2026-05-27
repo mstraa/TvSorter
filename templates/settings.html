@@ -23,6 +23,11 @@
       <input id="film-output-root" name="film_output_root" value="{{ film_output_root }}" placeholder="/mnt/media/Films">
     </label>
     <button class="secondary-button" type="button" data-folder-picker data-target="film-output-root" data-mode="replace">Browse Film Output Root</button>
+    <label>
+      Copy speed limit (Mo/s)
+      <input name="copy_rate_limit_mbps" type="number" min="0" step="1" value="{{ copy_rate_limit_mbps }}" placeholder="15">
+    </label>
+    <p class="muted">Use 0 for no copy limit. A conservative limit protects shared Proxmox storage from IO stalls during large batch copies.</p>
     <button type="submit">Save Settings</button>
   </form>
 </section>
